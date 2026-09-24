@@ -246,7 +246,9 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
     t = int(m["close_ns"][i])
     leg = np.arange(ext_idx, i + 1)
     body = sd.C[leg] - sd.O[leg]
-    disp = bool((body >= cfg["structure"]["displacement_body_atr"] * m["atr"][leg]).any())
+    strong_body = bool((body >= cfg["structure"]["displacement_body_atr"] * m["atr"][leg]).any())
+    leg_fvg = bool(((sd.fvg_idx >= ext_idx + 2) & (sd.fvg_idx <= i)).any())
+    disp = strong_body or leg_fvg  # displacement = silná sviečka alebo pohyb, ktorý nechal FVG
     if cfg["structure"]["require_displacement"] and not disp:
         return None, "MSS bez displacementu"
 
@@ -350,6 +352,7 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "w1_aligned": w1b == d,
         "target_is_bias_dol": bool(b == d and sd.tg_group[tk] in ("pdh_pdl", "pwh_pwl")),
         "displacement": disp,
+        "strong_body": strong_body,
         "h4_crt": _h4_crt(ctx, i, d),
         "htf_poi": _htf_poi(ctx, t, d, extreme),
         "vp": _vp_confluence(ctx, t, extreme),
@@ -369,7 +372,7 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
         return "mimo povoleného času"
     if fl["require_killzone"] and not any(in_window(minute, w) for w in killzones):
         return "mimo killzone"
-    if cfg["bias"]["filter"] and cfg["bias"]["filter"] != "none" and not s["bias_aligned"]:
+    if cfg["bias"]["filter"] and not s["bias_aligned"]:
         return f"proti biasu ({s['bias']})"
     for key, name in (("require_htf_poi", "htf_poi"), ("require_h4_crt", "h4_crt"), ("require_inducement", "inducement"),
                       ("require_vp", "vp"), ("require_premium_discount", "premium_discount")):
@@ -381,11 +384,13 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
 def _armed_alert(ctx: Context, i: int, d: int, lv: pd.DataFrame) -> dict:
     m = ctx.m5
     t = int(m["close_ns"][i])
+    windows = [parse_window(w) for w in ctx.cfg["filters"]["signal_windows_ny"]]
     b, bsrc, _, _ = effective_bias(ctx, i)
     kind = min(lv["kind"], key=_prio)
     price = float(lv.loc[lv["kind"] == kind, "price"].iloc[0])
     return {
         "ns": t, "stage": "armed", "direction": "LONG" if d == 1 else "SHORT", "bias_aligned": b == d,
+        "in_window": not windows or any(in_window(int(m["ny_min"][i]), w) for w in windows),
         "session": _session(ctx, int(m["ny_min"][i])),
         "text": (f"🟡 {ctx.cfg['instrument']} – sweep {kind} ({price:.5f}). "
                  f"Bias: {bias_mod.label(b)}{' (' + bsrc + ')' if bsrc else ''}. "

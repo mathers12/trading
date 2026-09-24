@@ -1,0 +1,91 @@
+# Nastavenia SMC bota. Časy sú v New York čase (NY), ceny v pipoch (EUR/USD: 1 pip = 0.0001).
+instrument: EUR_USD
+pip: 0.0001
+
+data:
+  source: oanda          # oanda | sample (umelé dáta na test) | cesta k .parquet/.csv
+  start: "2024-01-01"    # od kedy sťahovať/backtestovať
+  end: null              # null = po dnešok
+  cache_dir: data
+
+oanda:
+  environment: practice  # practice (demo účet) | live
+
+sessions:                # NY čas
+  asia: "20:00-00:00"
+  london: "02:00-05:00"
+  ny_am: "07:00-10:00"
+  ny_pm: "13:30-16:00"
+
+bias:
+  # D1 bias z dvoch posledných denných sviečok (close nad/pod, alebo sweep a návrat do rozsahu).
+  filter: true           # true = obchoduj iba v smere biasu
+  # keď D1 nedá smer (inside bar / obe strany vybraté): najprv W1, potom najbližšia nevybraná
+  # externá likvidita (PDH/PDL, PWH/PWL, Ázia) = kam chce trh ísť
+  fallback: [w1, liquidity]
+
+liquidity:
+  # čo sa počíta ako vybratie likvidity (bez neho nie je setup)
+  external: [pwh_pwl, pdh_pdl, asia, h1_swings, m15_swings]
+  internal_fvg_timeframes: [H1]   # dotyk H1 FVG = vybratie internej likvidity
+  swing_strength: 2               # swing = najvyšší/najnižší z 2 sviečok na každej strane
+  max_age_days: 5
+
+structure:
+  swing_strength_m5: 2
+  atr_period: 14
+  fvg_min_atr: 0.1                # minimálna veľkosť FVG (násobok ATR)
+  displacement_body_atr: 1.5      # silná sviečka = telo >= 1.5 × ATR
+  require_displacement: true      # MSS musí mať displacement (silná sviečka alebo FVG)
+  mss_max_bars: 36                # MSS musí prísť do 3 h (36 × M5) od extrému sweepu
+  mss_ref_lookback: 48
+
+poi:                              # supply/demand: OB a FVG na vyšších TF
+  timeframes: [H4, H1, M15]
+  tolerance_pips: 2
+  max_age_days: 10
+
+volume_profile:                   # z OANDA tick volume
+  bin_pips: 0.5
+  value_area: 0.70
+  tolerance_pips: 3
+  npoc_lookback_days: 10
+
+inducement:
+  lookback_bars: 24
+  max_distance_pips: 10
+
+entry:
+  type: fvg_or_ob                 # fvg | ob | fvg_or_ob (FVG, a ak nie je, tak OB)
+  price: proximal                 # proximal (prvý dotyk) | ce (50 % FVG)
+  expiry_bars: 12                 # limitka platí 1 h
+  sl_buffer_pips: 1.0             # SL za extrémom sweepu + rezerva
+  min_sl_pips: 3
+  max_sl_pips: 25
+
+target:
+  min_rr: 2.0
+  # first_min_rr = najbližšia opačná likvidita, ktorá dáva aspoň min_rr
+  # nearest      = iba najbližšia likvidita; ak nedáva min_rr, setup sa zahodí
+  mode: first_min_rr
+  kinds: [pdh_pdl, pwh_pwl, asia, h1_swings, m15_swings]
+
+filters:                          # true = setup musí mať túto konfluenciu
+  signal_windows_ny: ["00:00-14:00"]
+  require_killzone: false
+  require_h4_crt: false
+  require_htf_poi: false
+  require_vp: false
+  require_inducement: false
+  require_premium_discount: false
+
+risk:
+  risk_per_trade_pct: 1.0
+  max_trades_per_day: 2
+  max_losses_per_day: 2
+  one_position_at_a_time: true
+  eod_exit_ny: "16:00"            # day trading: o 16:00 NY sa všetko zatvorí
+
+live:
+  lookback_days: 25
+  alert_max_age_minutes: 60

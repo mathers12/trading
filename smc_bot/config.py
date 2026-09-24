@@ -17,7 +17,7 @@ DEFAULTS: dict = {
         "ny_am": "07:00-10:00",
         "ny_pm": "13:30-16:00",
     },
-    "bias": {"filter": "d1", "fallback": ["w1", "liquidity"]},
+    "bias": {"filter": True, "fallback": ["w1", "liquidity"]},
     "liquidity": {
         "external": ["pwh_pwl", "pdh_pdl", "asia", "h1_swings", "m15_swings"],
         "internal_fvg_timeframes": ["H1"],

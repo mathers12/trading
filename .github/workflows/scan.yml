@@ -1,0 +1,42 @@
+name: Skenovanie trhu
+
+on:
+  schedule:
+    # Po–Pi každých 10 min medzi 06:00 a 16:59 UTC (Londýn + New York).
+    # GitHub spúšťa naplánované úlohy s oneskorením pár minút.
+    - cron: "*/10 6-16 * * 1-5"
+  workflow_dispatch:
+
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Obnov stav (ktoré upozornenia už odišli)
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: scan-state-${{ github.run_id }}
+          restore-keys: scan-state-
+      - name: Skenuj a pošli upozornenia
+        env:
+          OANDA_API_TOKEN: ${{ secrets.OANDA_API_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m smc_bot scan
+      - name: Ulož stav
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: scan-state-${{ github.run_id }}

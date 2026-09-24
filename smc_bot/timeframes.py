@@ -28,7 +28,7 @@ NEVER = np.iinfo(np.int64).max
 
 def to_ns(x) -> np.ndarray:
     """Časy (index / séria, s časovou zónou) -> int64 nanosekundy UTC."""
-    return pd.DatetimeIndex(x).asi8
+    return pd.DatetimeIndex(x).as_unit("ns").asi8
 
 
 def shifted_naive(index_utc: pd.DatetimeIndex) -> pd.DatetimeIndex:
