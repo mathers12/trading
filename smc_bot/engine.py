@@ -208,6 +208,7 @@ def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False
     busy_until = -1
     day_trades: dict = {}
     day_losses: dict = {}
+    dir_losses: dict = {}  # deň -> [(smer, čas straty)]
 
     for i in range(len(m["close_ns"])):
         t = int(m["close_ns"][i])
@@ -261,6 +262,9 @@ def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False
                     reason = "denný limit obchodov"
                 elif day_losses.get(tkey, 0) >= rk_cfg["max_losses_per_day"]:
                     reason = "denný limit strát"
+                elif rk_cfg.get("no_reentry_after_loss") and any(
+                        dd == setup["direction"] and ex <= t for dd, ex in dir_losses.get(tkey, [])):
+                    reason = "po strate v tomto smere dnes už nie"
             if reason:
                 rejected.append({"time": setup["signal_time"], "direction": setup["direction"], "reason": reason,
                                  "entry": setup["entry"], "sl": setup["sl"], "tp": setup["tp"], "rr": setup["rr"]})
@@ -276,6 +280,7 @@ def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False
                     day_trades[tkey] = day_trades.get(tkey, 0) + 1
                     if res["result"] == "SL":
                         day_losses[tkey] = day_losses.get(tkey, 0) + 1
+                        dir_losses.setdefault(tkey, []).append((setup["direction"], res["exit_ns"]))
             setups.append(setup)
     return {"setups": setups, "rejected": rejected, "alerts": alerts}
 
