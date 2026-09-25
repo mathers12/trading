@@ -76,6 +76,9 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   **07/2025: 23 obchodov (1,05/deň), úspešnosť 57 %, PF 2,45, +14,5R, obchod v 14/22 dňoch.** Pridanie M5 pullbackov alebo swing 1 = viac obchodov, horší PF.
   Ladené na jednom mesiaci → **overenie bez úprav: 08/2025 15 obchodov, 20 %, PF 0,37, −6,9R; 03/2025 10 obchodov, 30 %, PF 0,72, −1,9R → neobstálo**
   (júl bol náhoda/preučenie na jednom mesiaci).
+  Potvrdenia na 3 mesiacoch spolu (03+07+08/2025, `news.enabled` = 2 h pred / 30 min po správach z `calendar/news.csv`):
+  správy −1 obchod (PF 1,20→1,25); H4 CRT PF 1,62 (25 obch.); okno LO+NY PF 1,49; **správy + H4 CRT + LO+NY: 19 obchodov (0,3/deň), 53 %, PF 2,12**,
+  ale 11 z 19 obchodov je z júla, august PF ~1,0. Premium/discount a vstup na 50 % škodia; htf_idm a poi_sweep sú príliš voľné (nemenia nič).
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
