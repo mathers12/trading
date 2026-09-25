@@ -75,7 +75,7 @@ python -m smc_bot backtest --set filters.require_vp=true --set target.mode=fixed
 
 ## GitHub
 - Repo `mathers12/trading` (verejné, Actions minúty bez limitu). Pracovný a predvolený branch: `claude/sharp-clarke-47h6ph`.
-- Workflowy: `backtest.yml`, `research.yml`, `scan.yml` (ručne aj podľa cronu Po–Pi 06–16 UTC každých 10 min), `tests.yml`.
+- Workflowy: `backtest.yml`, `research.yml`, `scan.yml` (iba ručne; cron vypnutý, kým stratégia nemá overenú výhodu – naplánované behy sa aj tak nespúšťali), `tests.yml`.
   Reporty sú v artefaktoch behu.
 - Secrets: `TWELVEDATA_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Tokeny nikdy do kódu ani do chatu.
 - Sandbox Claude session: `datafeed.dukascopy.com` je povolený, ale s limitom požiadaviek. Blob storage GitHub artefaktov nie je dostupný,
