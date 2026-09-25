@@ -71,6 +71,10 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
 - **HTF pullback model** (dokument používateľa: H1 BOS → pullback do golden pocketu + FVG H1/M15 → inducement → M1/M5 MSS; `smc_bot/htf.py`,
   `liquidity.external=["htf_pb"]`). Vzorka EUR/USD 07/2025: iba prvý dotyk = 1–5 obchodov/mesiac.
   Uvoľnené (M1 MSS, fib 0,5–0,79, každý návrat do zóny `htf.max_touches=99`, TP 2R): ~1 obchod/deň, úspešnosť 36–38 %, PF 1,1–1,2.
+  **Top-down** (`htf.align`: W1/D1 = bias dvoch sviečok, H4/H1/M15 = smer posledného BOS; pullback iba v smere vyšších TF),
+  pullbacky naraz na H1 aj M15 (`htf.timeframe=["H1","M15"]`), M1 MSS, fib 0,5–0,79, TP 2R, max 4 obchody/deň, viac pozícií naraz:
+  **07/2025: 23 obchodov (1,05/deň), úspešnosť 57 %, PF 2,45, +14,5R, obchod v 14/22 dňoch.** Pridanie M5 pullbackov alebo swing 1 = viac obchodov, horší PF.
+  Ladené na jednom mesiaci → treba overiť na ďalšom mesiaci.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)

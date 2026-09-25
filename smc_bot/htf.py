@@ -57,11 +57,21 @@ def tf_direction(df: pd.DataFrame, n: int) -> np.ndarray:
     return np.where((bull < 0) & (bear < 0), 0, np.where(bull > bear, 1, -1)).astype(np.int8)
 
 
-def aligned(ctx, t5: np.ndarray, d: int) -> np.ndarray:
+ORDER = ["W1", "D1", "H4", "H1", "M15", "M5"]
+
+
+def aligned(ctx, t5: np.ndarray, d: int, below: str | None = None) -> np.ndarray:
     """Top-down: smer d súhlasí so štruktúrou všetkých TF z htf.align (napr. W1, D1, H4) – posledné uzavreté sviečky."""
     ok = np.ones(len(t5), dtype=bool)
     n = int(ctx.cfg["htf"]["swing_strength"])
     for tf in ctx.cfg["htf"].get("align") or []:
+        if below and ORDER.index(tf) >= ORDER.index(below):
+            continue  # zosúladenie iba s vyššími TF, než je TF pullbacku
+        if tf in ("W1", "D1"):  # bias z dvoch posledných sviečok (pravidlo používateľa, bias.py) – stačí krátka história
+            arr = ctx.w1 if tf == "W1" else ctx.d1
+            k = np.searchsorted(arr["close_ns"], t5, "right") - 1
+            ok &= (k >= 0) & (arr["bias"][np.maximum(k, 0)] == d)
+            continue
         df = ctx.frames[tf]
         dirs = tf_direction(df, n)
         k = np.searchsorted(to_ns(df["close_time"]), t5, "right") - 1
@@ -69,12 +79,12 @@ def aligned(ctx, t5: np.ndarray, d: int) -> np.ndarray:
     return ok
 
 
-def events(ctx, d: int) -> list[tuple]:
+def events(ctx, d: int, tf_pb: str) -> list[tuple]:
     """Udalosti pre smer d: (m5_idx, cena_dotyku, far=lo, tp=hi, kind, idm) v reálnych cenách."""
     cfg = ctx.cfg
     hc = cfg["htf"]
     f = ctx.frames
-    H = f[hc["timeframe"]]
+    H = f[tf_pb]
     sg = 1 if d == 1 else -1
     if d == 1:
         hh, hl, hcl = H["high"].to_numpy(), H["low"].to_numpy(), H["close"].to_numpy()
@@ -110,7 +120,7 @@ def events(ctx, d: int) -> list[tuple]:
     m = ctx.m5
     t5 = m["close_ns"]
     kidx = np.searchsorted(h_close, t5, "right") - 1  # posledná uzavretá HTF sviečka
-    kidx = np.where(aligned(ctx, t5, d), kidx, -1)  # top-down filter (W1 -> D1 -> H4)
+    kidx = np.where(aligned(ctx, t5, d, tf_pb), kidx, -1)  # top-down filter (W1 -> D1 -> H4)
     nsw = cfg["structure"]["swing_strength_m5"]
     ltf_sl = np.flatnonzero(swing_lows(L, nsw))
     f_min, f_max = hc["fib_min"], hc["fib_max"]
@@ -148,15 +158,17 @@ def events(ctx, d: int) -> list[tuple]:
         js = js[(t5[js] >= hi_t)]
         idm = bool(((L[js] > top_z) & (L[js] > L[i])).any()) if len(js) else False
         out.append((int(i), sg * float(min(L[i], top_z)), sg * float(lo[k]), sg * float(hi[k]),
-                    f"{hc['timeframe']}_PB" + ("_" + poi if poi else ""), idm))
+                    f"{tf_pb}_PB" + ("_" + poi if poi else ""), idm))
     return out
 
 
 def level_rows(ctx) -> pd.DataFrame:
     rows = []
-    for d in (1, -1):
-        for i, price, far, tp, kind, idm in events(ctx, d):
-            rows.append({"price": price, "side": "low" if d == 1 else "high", "kind": kind, "group": "htf_pb",
-                         "available_ns": int(ctx.m5["close_ns"][i]), "expires_ns": NEVER, "taken_idx": i,
-                         "far": far, "tp": tp, "idm": idm})
+    tfs = ctx.cfg["htf"]["timeframe"]
+    for tf_pb in ([tfs] if isinstance(tfs, str) else tfs):  # pullback naraz na viacerých TF (napr. H1, M15, M5)
+        for d in (1, -1):
+            for i, price, far, tp, kind, idm in events(ctx, d, tf_pb):
+                rows.append({"price": price, "side": "low" if d == 1 else "high", "kind": kind, "group": "htf_pb",
+                             "available_ns": int(ctx.m5["close_ns"][i]), "expires_ns": NEVER, "taken_idx": i,
+                             "far": far, "tp": tp, "idm": idm})
     return pd.DataFrame(rows)
