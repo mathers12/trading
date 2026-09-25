@@ -9,7 +9,7 @@ import yaml
 DEFAULTS: dict = {
     "instrument": "EUR_USD",
     "pip": 0.0001,
-    "data": {"source": "oanda", "start": "2024-01-01", "end": None, "cache_dir": "data"},
+    "data": {"source": "dukascopy", "start": "2024-01-01", "end": None, "cache_dir": "data", "assumed_spread_pips": 0.8},
     "oanda": {"environment": "practice"},
     "sessions": {
         "asia": "20:00-00:00",

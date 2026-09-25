@@ -1,8 +1,8 @@
-# SMC signálny bot a backtester (EUR/USD, OANDA)
+# SMC signálny bot a backtester (EUR/USD)
 
 Bot sleduje EUR/USD a hľadá day-tradingové setupy podľa Smart Money / ICT konceptov.
 Keď nájde setup, pošle upozornenie na Telegram. Ten istý kód robí aj **backtest** na
-historických M1 dátach z OANDA: zistí, ktoré potenciálne obchody by prešli (TP) a ktoré nie (SL),
+historických M1 bid/ask dátach z **Dukascopy** (zadarmo, bez registrácie): zistí, ktoré potenciálne obchody by prešli (TP) a ktoré nie (SL),
 a spraví k tomu štatistiku.
 
 > Bot obchody **nezadáva**. Upozorní ťa a rozhodnutie je na tebe.
@@ -41,18 +41,20 @@ s komentármi.
 
 ## Nastavenie (raz)
 
-1. **OANDA:** založ si demo (practice) účet na oanda.com a v časti *Manage API Access*
-   vygeneruj API token.
-2. **Telegram:** v Telegrame napíš [@BotFather](https://t.me/BotFather), príkazom `/newbot`
-   získaš *bot token*. Potom botovi napíš ľubovoľnú správu a svoje *chat id* zistíš na
-   `https://api.telegram.org/bot<TOKEN>/getUpdates` (`"chat":{"id": …}`).
-3. V tomto repozitári otvor **Settings → Secrets and variables → Actions → New repository secret**
-   a pridaj:
-   - `OANDA_API_TOKEN`
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID`
+**Na backtest netreba nič.** História sa sťahuje z Dukascopy bez registrácie a tokenu.
 
-Tokeny nikdy nedávaj priamo do kódu.
+Na živé upozornenia pridaj v repozitári (*Settings → Secrets and variables → Actions →
+New repository secret*) tieto tri secrets:
+
+| Name | Hodnota | Kde ju získaš |
+|---|---|---|
+| `TWELVEDATA_API_KEY` | API kľúč | zaregistruj sa na [twelvedata.com](https://twelvedata.com) (bezplatný plán), kľúč nájdeš v *Dashboard → API Keys* |
+| `TELEGRAM_BOT_TOKEN` | napr. `7412345678:AAH…` | v Telegrame napíš [@BotFather](https://t.me/BotFather) príkaz `/newbot` |
+| `TELEGRAM_CHAT_ID` | číslo, napr. `123456789` | napíš svojmu botovi správu a otvor `https://api.telegram.org/bot<TOKEN>/getUpdates`, hodnota `"chat":{"id": …}` |
+
+Twelve Data slúži iba na doplnenie dnešných sviečok, lebo Dukascopy zverejňuje deň až po jeho skončení.
+Ak máš OANDA účet s prístupom k API, môžeš v `config.yaml` nastaviť `data.source: oanda`
+a pridať secret `OANDA_API_TOKEN`. Tokeny nikdy nedávaj priamo do kódu.
 
 ## Používanie cez GitHub (bez inštalácie)
 
@@ -71,20 +73,21 @@ Tokeny nikdy nedávaj priamo do kódu.
 
 ```bash
 pip install -r requirements.txt
-export OANDA_API_TOKEN=...                 # Windows: set OANDA_API_TOKEN=...
+export TWELVEDATA_API_KEY=...              # iba pre scan; Windows: set TWELVEDATA_API_KEY=...
 
 python -m smc_bot backtest --start 2024-01-01 --charts 20   # report v reports/<dátum>/
 python -m smc_bot compare  --start 2024-01-01               # porovnanie variantov
 python -m smc_bot scan                                      # jedno živé skenovanie
 
-# bez OANDA tokenu, na umelých dátach (iba na test, že všetko beží)
+# na umelých dátach (iba na test, že všetko beží)
 python -m smc_bot backtest --source sample
 
 # zmena nastavení bez úpravy súboru
 python -m smc_bot backtest --set filters.require_h4_crt=true --set target.min_rr=3
 ```
 
-Dáta z OANDA sa ukladajú do `data/` a pri ďalšom spustení sa dopĺňajú iba chýbajúce.
+Dáta sa ukladajú do `data/` a pri ďalšom spustení sa dopĺňajú iba chýbajúce dni.
+Prvé stiahnutie dvoch rokov z Dukascopy trvá niekoľko minút.
 
 ### Čo obsahuje report
 - `summary.md` obsahuje úspešnosť, priemerné R, profit factor, max. drawdown, najdlhšiu sériu strát
@@ -98,7 +101,8 @@ Dáta z OANDA sa ukladajú do `data/` a pri ďalšom spustení sa dopĺňajú ib
 
 | súbor | čo robí |
 |---|---|
-| `smc_bot/data.py` | OANDA v20 API (M1 bid/ask/mid), cache, umelé dáta |
+| `smc_bot/dukascopy.py` | Dukascopy M1 bid/ask história + Twelve Data na dnešné sviečky |
+| `smc_bot/data.py` | výber zdroja, OANDA v20 API, cache, umelé dáta |
 | `smc_bot/timeframes.py` | M1 → M5/M15/H1/H4/D1/W1 (deň začína 17:00 NY ako na OANDA) |
 | `smc_bot/structure.py` | ATR, swingy, FVG, order blocky |
 | `smc_bot/bias.py` | daily/weekly bias |
@@ -110,6 +114,6 @@ Dáta z OANDA sa ukladajú do `data/` a pri ďalšom spustení sa dopĺňajú ib
 | `smc_bot/notify.py` | Telegram |
 
 ## Upozornenie
-Volume z OANDA je *tick volume* (počet zmien ceny), nie skutočný objem, pretože forex nemá
-centrálnu burzu. Volume profile je preto aproximácia.
+Forex nemá centrálnu burzu, takže volume z Dukascopy (alebo OANDA) je objem iba u jedného
+brokera, nie celého trhu. Volume profile je preto aproximácia.
 Výsledky backtestu nie sú zárukou budúcich výsledkov. Nový setup testuj najprv na demo účte.

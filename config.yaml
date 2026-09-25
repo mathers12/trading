@@ -3,10 +3,15 @@ instrument: EUR_USD
 pip: 0.0001
 
 data:
-  source: oanda          # oanda | sample (umelé dáta na test) | cesta k .parquet/.csv
+  # dukascopy = bezplatná história M1 bid/ask bez registrácie (živé skenovanie dopĺňa
+  #             dnešné sviečky z Twelve Data, treba TWELVEDATA_API_KEY)
+  # oanda     = OANDA v20 API (treba OANDA_API_TOKEN)
+  # sample    = umelé dáta na test, že všetko beží
+  source: dukascopy
   start: "2024-01-01"    # od kedy sťahovať/backtestovať
   end: null              # null = po dnešok
   cache_dir: data
+  assumed_spread_pips: 0.8   # spread pre sviečky z Twelve Data (nemajú bid/ask)
 
 oanda:
   environment: practice  # practice (demo účet) | live

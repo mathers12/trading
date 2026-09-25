@@ -1,4 +1,4 @@
-"""Načítanie M1 dát: OANDA v20 API (s cache na disku) alebo umelé dáta na testovanie."""
+"""Načítanie M1 dát: Dukascopy (predvolené), OANDA v20 API, vlastný súbor alebo umelé dáta."""
 from __future__ import annotations
 
 import os
@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import requests
 
+from . import dukascopy
 from .timeframes import NY
 
 COLUMNS = ["open", "high", "low", "close", "volume",
@@ -91,9 +92,22 @@ def load_oanda(cfg: dict, start: str | None = None, end: str | None = None) -> p
 
 
 def load_recent(cfg: dict, days: int) -> pd.DataFrame:
-    """Posledných N dní M1 priamo z OANDA (pre živé skenovanie)."""
-    client = OandaClient(environment=cfg["oanda"]["environment"])
-    return client.candles(cfg["instrument"], pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days))
+    """Posledných N dní M1 pre živé skenovanie.
+
+    oanda:     všetko priamo z OANDA
+    dukascopy: história z Dukascopy (po včerajšok) + dnešné sviečky z Twelve Data
+    """
+    now = pd.Timestamp.now(tz="UTC")
+    start = now - pd.Timedelta(days=days)
+    if cfg["data"]["source"] == "oanda":
+        client = OandaClient(environment=cfg["oanda"]["environment"])
+        return client.candles(cfg["instrument"], start)
+    hist = dukascopy.load(cfg, start=f"{start:%Y-%m-%d}")
+    recent = dukascopy.twelvedata_recent(cfg["instrument"], cfg["data"]["assumed_spread_pips"], cfg["pip"])
+    if len(hist) and len(recent):
+        recent = recent[recent.index > hist.index[-1]]
+    df = pd.concat([p for p in (hist, recent) if len(p)])
+    return df[~df.index.duplicated(keep="first")].sort_index()
 
 
 def make_sample(start: str = "2024-01-01", days: int = 120, seed: int = 7, price: float = 1.09) -> pd.DataFrame:
@@ -132,6 +146,8 @@ def load_m1(cfg: dict, source: str | None = None, start: str | None = None, end:
         return make_sample(start or cfg["data"]["start"])
     if source == "oanda":
         return load_oanda(cfg, start, end)
+    if source == "dukascopy":
+        return dukascopy.load(cfg, start, end)
     path = Path(source)  # vlastný parquet/csv súbor
     df = pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path, index_col=0, parse_dates=True)
     df.index = pd.to_datetime(df.index, utc=True)
