@@ -15,7 +15,7 @@ def times_ns(path: str) -> np.ndarray:
         return np.array([], dtype=np.int64)
     df = pd.read_csv(p, comment="#")
     t = pd.to_datetime(df["time_ny"]).dt.tz_localize("America/New_York").dt.tz_convert("UTC")
-    return np.sort(t.astype("int64").to_numpy())
+    return np.sort(np.array([x.value for x in t], dtype=np.int64))  # ns (nezávisle od jednotky v pandas)
 
 
 def blocked(cfg: dict, t_ns: int) -> str:
