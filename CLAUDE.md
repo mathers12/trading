@@ -61,6 +61,18 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   weekly profil, vstup na retest MSS úrovne, kombinácia trhového vstupu s H4 CRT/SMT.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
+## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
+1. **POI / supply-demand zóny (priorita, definícia od používateľa):**
+   - zóna = order block (supply/demand) na **H4, H1 alebo M15**,
+   - platná iba ak z nej vznikol **displacement** a **prerazenie štruktúry nechalo FVG**,
+   - obchoduje sa **iba prvý dotyk**, druhý dotyk je neplatný,
+   - ideálne, keď v zóne nastane **sweep likvidity** a **inducement** (tagy, potom otestovať, či pomáhajú),
+   - vstup po M5 MSS v zóne, SL za zónou/extrémom, TP 2R alebo opačná likvidita; bias D1, premium/discount ako tag.
+2. Londýnsky breakout ázijského rozsahu (v smere D1/H4 trendu).
+3. Falošné prerazenie ázijského rozsahu v Londýne (Judas / turtle soup), TP na opačnej strane rozsahu.
+4. Návrat k hodnote (VWAP / value area predchádzajúceho dňa) v dňoch bez trendu.
+Každú overiť: ladenie 2020–2023, overenie 2025-07+, EUR/USD aj GBP/USD, výsledky s počtom obchodov/deň.
+
 ## Príkazy
 ```bash
 pip install -r requirements.txt
