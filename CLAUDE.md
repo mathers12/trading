@@ -53,6 +53,8 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   **2020–2023 PF 0,79 (28 %) → neobstál**. Výhoda z 2024–26 bola náhoda alebo trhový režim.
 - Frekvencia vs. kvalita: viac obchodov = menšia výhoda. M5 najviac ~0,6 obchodu/deň pri PF ~1,1; **M1** až 1,8/deň, ale PF < 1 (spread).
 - OTE limitka: ~60 % setupov „ušlo“ (TP pred vstupom), vypĺňajú sa hlavne horšie obchody → pridaný trhový vstup po MSS (`entry.type=market`).
+- **Trhový vstup po MSS** (`research --grid market`, IS 2020–2023, OOS 2024-01+): 1–1,3 obchodu/deň (okno 08–19),
+  ale PF ~1,0 v IS aj OOS, žiadna z 96 kombinácií stabilne nad PF 1,1. Samotný mechanický setup výhodu nemá.
 - ML filter (`python -m smc_bot ml`, gradient boosting na vlastnostiach setupov): bez prediktívnej sily (OOS PF ~1,0–1,16).
 - Nové: SMT divergencia s GBP/USD (`smt`, `filters.require_smt`), londýnsky rozsah ako likvidita (LON_H/LON_L), `structure.timeframe` M5/M1.
 - Doteraz nevyskúšané nápady: SMT ako filter/vlastnosť pre ML na oboch pároch, správy (NFP/CPI/FOMC), denná volatilita (ATR),
