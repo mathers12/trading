@@ -151,13 +151,16 @@ def cmd_research(cfg, a):
     top = research.rank(df).head(30)
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 40)
-    print("\nTOP 30 podľa in-sample (IS), vedľa výsledok na OOS:")
-    print(top.to_string(index=False))
+    dims = [c for c in df.columns if not c[:3] in ("IS_", "OOS", "VER")]
+    short = dims + [c for c in ("IS_n", "IS_win%", "IS_PF", "IS_perday", "OOS_n", "OOS_PF", "VER_n", "VER_win%", "VER_PF")
+                    if c in df.columns]
+    print("\nTOP 10 podľa in-sample (IS), vedľa výsledok na OOS:")
+    print(top.head(10)[short].to_string(index=False))
     both = df[(df["IS_n"] >= 40) & (df["OOS_n"] >= 25)].copy()
     both["min_avgR"] = both[["IS_avgR", "OOS_avgR"]].min(axis=1)
     robust = both.sort_values("min_avgR", ascending=False).head(15)
     print("\nNajrobustnejšie (najlepší horší z IS/OOS):")
-    print(robust.to_string(index=False))
+    print(robust.head(10)[short].to_string(index=False))
     md = [f"# Research {cfg['instrument']} – OOS od {a.split}\n", "## Top 30 podľa IS\n",
           report._md_table(top.set_index(top.columns[0])), "\n## Najrobustnejšie\n", report._md_table(robust.set_index(robust.columns[0]))]
     (out / "research.md").write_text("\n".join(md), encoding="utf-8")

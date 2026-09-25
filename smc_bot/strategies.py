@@ -81,8 +81,8 @@ def run(ctx: Context) -> dict:
     else:
         vp = ctx.vp
         k_vp = np.searchsorted(vp["avail_ns"], m["close_ns"], "right") - 1
-        day_first = np.r_[True, m["tday"][1:] != m["tday"][:-1]]
-        day_open = pd.Series(np.where(day_first, m["open"], np.nan)).ffill().to_numpy()
+        # referenčné otvorenie = prvá sviečka obchodného okna v danom dni (napr. otvorenie Londýna)
+        day_open = (pd.Series(np.where(in_win, m["open"], np.nan)).groupby(m["tday"]).transform("first").to_numpy())
     ext = {}  # asia_fakeout: extrém za rozsahom v danom dni
     for i in range(n):
         tday = m["tday"][i]
