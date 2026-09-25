@@ -252,4 +252,8 @@ def _build_levels(ctx: Context) -> pd.DataFrame:
         arr = m5["high"] if s == "high" else m5["low"]
         taken[k] = _first_cross(m5["open_ns"], arr, int(a), int(e), p, above=(s == "high"))
     lv["taken_idx"] = taken
+    if "htf_pb" in groups:  # HTF pullback do golden pocketu (udalosti počíta htf.py)
+        from .htf import level_rows
+
+        lv = pd.concat([lv, level_rows(ctx)], ignore_index=True)
     return lv

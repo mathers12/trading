@@ -8,6 +8,9 @@ import yaml
 
 DEFAULTS: dict = {
     "strategy": "smc",  # smc | asia_breakout | asia_fakeout | value_revert (smc_bot/strategies.py)
+    # HTF pullback model (liquidity.external obsahuje htf_pb; smc_bot/htf.py)
+    "htf": {"timeframe": "H1", "poi_timeframe": "H1", "swing_strength": 2, "fib_min": 0.62, "fib_max": 0.79,
+            "require_fvg": True},
     "session_strategy": {
         "windows_local": ["08:00-11:00"], "direction": "none", "entry": "market", "rr": 2.0, "min_rr": 1.0,
         "min_range_pips": 5, "max_range_pips": 40, "break_pips": 0.0, "sweep_pips": 1.0, "sl": "mid", "sl_atr": 1.5,

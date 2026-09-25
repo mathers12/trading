@@ -1,0 +1,130 @@
+"""HTF pullback model (podľa používateľovho dokumentu trading_patterns):
+
+1. štruktúra vyššieho TF (H1/H4): BOS close-om za posledným swingom určí smer a rozsah impulzu (lo → hi),
+2. pullback do golden pocketu (fib_min – fib_max rozsahu), v ňom HTF FVG z impulzu = POI,
+3. inducement = LTF swing, ktorý vznikol počas pullbacku („likvidita napravo“) a cena ho pri vstupe do POI vybrala,
+4. potom LTF MSS s displacementom a vstup (rieši engine), TP voliteľne na extréme impulzu (hi).
+
+Udalosť (prvý vstup do POI v danom rozsahu) sa pridáva do ctx.levels ako skupina `htf_pb`,
+takže engine ju spracuje rovnako ako sweep likvidity. Všetko je známe až po uzavretí sviečok.
+"""
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from .structure import atr, find_fvgs, swing_highs, swing_lows
+from .timeframes import NEVER, to_ns
+
+
+def _structure(h, l, c, n):
+    """Bull štruktúra na (zrkadlených) poliach: pre každú sviečku k stav po jej uzavretí.
+
+    Vracia trend (1 = po bull BOS, 0 = nič), lo, hi, lo_idx, hi_idx, bos_idx.
+    """
+    m = len(h)
+    sh = swing_highs(h, n)
+    trend = np.zeros(m, dtype=np.int8)
+    lo_a, hi_a = np.full(m, np.nan), np.full(m, np.nan)
+    lo_i, hi_i, bos_a = np.full(m, -1), np.full(m, -1), np.full(m, -1)
+    last_sh, last_sh_idx, broken = np.nan, -1, True
+    tr, lo, hi, li, hix, bos = 0, np.nan, np.nan, -1, -1, -1
+    for k in range(m):
+        j = k - n
+        if j >= 0 and sh[j]:
+            last_sh, last_sh_idx, broken = h[j], j, False
+        if not broken and c[k] > last_sh:
+            broken = True
+            seg = l[last_sh_idx:k + 1]
+            li = last_sh_idx + int(np.argmin(seg))
+            tr, lo, bos = 1, float(seg.min()), k
+            hix = li + int(np.argmax(h[li:k + 1]))
+            hi = float(h[hix])
+        elif tr == 1:
+            if h[k] > hi:
+                hi, hix = float(h[k]), k
+            if c[k] < lo:
+                tr = 0
+        trend[k], lo_a[k], hi_a[k], lo_i[k], hi_i[k], bos_a[k] = tr, lo, hi, li, hix, bos
+    return trend, lo_a, hi_a, lo_i, hi_i, bos_a
+
+
+def events(ctx, d: int) -> list[tuple]:
+    """Udalosti pre smer d: (m5_idx, cena_dotyku, far=lo, tp=hi, kind, idm) v reálnych cenách."""
+    cfg = ctx.cfg
+    hc = cfg["htf"]
+    f = ctx.frames
+    H = f[hc["timeframe"]]
+    P = f[hc["poi_timeframe"]]
+    sg = 1 if d == 1 else -1
+    if d == 1:
+        hh, hl, hcl = H["high"].to_numpy(), H["low"].to_numpy(), H["close"].to_numpy()
+        ph, pl, pc = P["high"].to_numpy(), P["low"].to_numpy(), P["close"].to_numpy()
+        L, Hm = ctx.m5["low"], ctx.m5["high"]
+    else:
+        hh, hl, hcl = -H["low"].to_numpy(), -H["high"].to_numpy(), -H["close"].to_numpy()
+        ph, pl, pc = -P["low"].to_numpy(), -P["high"].to_numpy(), -P["close"].to_numpy()
+        L, Hm = -ctx.m5["high"], -ctx.m5["low"]
+    trend, lo, hi, lo_i, hi_i, bos = _structure(hh, hl, hcl, int(hc["swing_strength"]))
+    h_close = to_ns(H["close_time"])
+    h_open = to_ns(H.index)
+
+    # POI: bull FVG na POI TF (zrkadlené), platný kým close nepadne pod spodok
+    a = atr(ph, pl, pc, cfg["structure"]["atr_period"])
+    fv = find_fvgs(ph, pl, cfg["structure"]["fvg_min_atr"] * a)
+    fv = fv[fv["side"] == "bull"]
+    p_close = to_ns(P["close_time"])
+    fv_cr = p_close[fv["idx"].to_numpy()] if len(fv) else np.array([], dtype=np.int64)
+    fv_bot, fv_top = fv["bottom"].to_numpy(), fv["top"].to_numpy()
+    fv_inv = np.full(len(fv), NEVER, dtype=np.int64)
+    for k, (idx, bot) in enumerate(zip(fv["idx"].to_numpy(), fv_bot)):
+        hit = pc[idx + 1:] < bot
+        if hit.any():
+            fv_inv[k] = p_close[idx + 1 + int(np.argmax(hit))]
+
+    m = ctx.m5
+    t5 = m["close_ns"]
+    kidx = np.searchsorted(h_close, t5, "right") - 1  # posledná uzavretá HTF sviečka
+    nsw = cfg["structure"]["swing_strength_m5"]
+    ltf_sl = np.flatnonzero(swing_lows(L, nsw))
+    f_min, f_max = hc["fib_min"], hc["fib_max"]
+    done: set[int] = set()
+    out = []
+    for i in np.flatnonzero((kidx >= 0)):
+        k = kidx[i]
+        if trend[k] != 1 or bos[k] in done:
+            continue
+        R = hi[k] - lo[k]
+        if R <= 0:
+            continue
+        top_z = hi[k] - f_min * R  # začiatok golden pocketu
+        bot_z = hi[k] - f_max * R
+        if L[i] > top_z or L[i] < lo[k]:
+            continue
+        t = int(t5[i])
+        leg_start = int(h_open[lo_i[k]])
+        poi = ""
+        if hc["require_fvg"]:
+            ok = (fv_cr <= t) & (fv_inv > t) & (fv_cr >= leg_start) & (fv_bot <= top_z) & (fv_top >= bot_z) & (L[i] <= fv_top)
+            if not ok.any():
+                continue
+            poi = f"{hc['poi_timeframe']}_FVG"
+        done.add(bos[k])
+        # inducement: LTF swing low potvrdený počas pullbacku (po vrchole impulzu), nad zónou -> teraz vybratý
+        hi_t = int(h_open[hi_i[k]])
+        js = ltf_sl[(ltf_sl + nsw < i)]
+        js = js[(t5[js] >= hi_t)]
+        idm = bool(((L[js] > top_z) & (L[js] > L[i])).any()) if len(js) else False
+        out.append((int(i), sg * float(min(L[i], top_z)), sg * float(lo[k]), sg * float(hi[k]),
+                    f"{hc['timeframe']}_PB" + ("_" + poi if poi else ""), idm))
+    return out
+
+
+def level_rows(ctx) -> pd.DataFrame:
+    rows = []
+    for d in (1, -1):
+        for i, price, far, tp, kind, idm in events(ctx, d):
+            rows.append({"price": price, "side": "low" if d == 1 else "high", "kind": kind, "group": "htf_pb",
+                         "available_ns": int(ctx.m5["close_ns"][i]), "expires_ns": NEVER, "taken_idx": i,
+                         "far": far, "tp": tp, "idm": idm})
+    return pd.DataFrame(rows)

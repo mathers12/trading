@@ -16,7 +16,7 @@ from .context import DAY_NS, Context, in_window, parse_window
 from .structure import find_fvgs, swing_highs, swing_lows
 from .timeframes import NY
 
-PRIORITY = ["H4_OB", "H1_OB", "M15_OB", "PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "LON_H", "LON_L", "H4_FVG", "H1_SH", "H1_SL", "H1_FVG", "M15_SH", "M15_SL", "M15_FVG"]
+PRIORITY = ["H4_PB_H1_FVG", "H1_PB_H1_FVG", "H4_PB", "H1_PB", "H4_OB", "H1_OB", "M15_OB", "PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "LON_H", "LON_L", "H4_FVG", "H1_SH", "H1_SL", "H1_FVG", "M15_SH", "M15_SL", "M15_FVG"]
 
 
 def _bar_scale(cfg: dict) -> int:
@@ -217,6 +217,9 @@ def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False
                 if st is None:
                     lv = ctx.levels.loc[evs]
                     st = state[d] = {"event_idx": i, "ext_idx": i, "ext": sd.L[i], "levels": list(evs)}
+                    if "tp" in lv and lv["tp"].notna().any():  # HTF pullback: TP na extréme impulzu
+                        st["tp_d"] = float((d * lv["tp"].dropna()).min())
+                        st["htf_idm"] = bool(lv["idm"].fillna(False).astype(bool).any())
                     far = lv["far"].dropna()
                     if len(far):  # POI zóna: vzdialená hrana (zrkadlená)
                         st["far_d"] = float((d * far).min())
@@ -334,29 +337,42 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
     if sl_pips > en["max_sl_pips"]:
         return None, f"SL príliš veľký ({sl_pips:.1f} pip)"
 
-    # --- cieľ: najbližšia opačná likvidita s RR >= min
-    ok = (sd.tg_avail <= t) & (sd.tg_exp > t) & ((sd.tg_taken < 0) | (sd.tg_taken > i)) & (sd.tg_price_d > entry_d)
-    if not ok.any():
-        return None, "žiadna opačná likvidita"
-    order = np.flatnonzero(ok)[np.argsort(sd.tg_price_d[ok], kind="stable")]
-    rr_all = (sd.tg_price_d[order] - entry_d) / risk_d
-    mode = tg["mode"]
-    if mode == "nearest":
-        pick = 0 if rr_all[0] >= tg["min_rr"] else -1
+    # --- cieľ: najbližšia opačná likvidita s RR >= min (alebo extrém HTF impulzu)
+    tg_kind = ""
+    if tg["mode"] == "htf" and "tp_d" in st:
+        tp_d = st["tp_d"]
+        rr = float((tp_d - entry_d) / risk_d)
+        if rr < tg["min_rr"]:
+            return None, f"RR pod {tg['min_rr']} (extrém impulzu {rr:.2f}R)"
+        liq_rr = rr
+        if tg.get("max_rr") and rr > tg["max_rr"]:
+            tp_d, rr = entry_d + tg["max_rr"] * risk_d, float(tg["max_rr"])
+        tg_kind, tg_group = "HTF_HI", ""
     else:
-        hits = np.flatnonzero(rr_all >= tg["min_rr"])
-        pick = int(hits[0]) if len(hits) else -1
-    if mode == "fixed_rr":
-        pick = 0  # TP pevne na min_rr, likvidita slúži iba na popis
-    if pick < 0:
-        return None, f"RR pod {tg['min_rr']} (najbližšia likvidita {rr_all[0]:.2f}R)"
-    tk = order[pick]
-    tp_d, rr = sd.tg_price_d[tk], float(rr_all[pick])
-    if mode in ("fixed_rr", "fixed_rr_liq"):
-        # fixed_rr_liq: TP na min_rr, ale iba keď je za ním likvidita (magnet)
-        tp_d, rr = entry_d + tg["min_rr"] * risk_d, float(tg["min_rr"])
-    elif tg.get("max_rr") and rr > tg["max_rr"]:
-        tp_d, rr = entry_d + tg["max_rr"] * risk_d, float(tg["max_rr"])
+        ok = (sd.tg_avail <= t) & (sd.tg_exp > t) & ((sd.tg_taken < 0) | (sd.tg_taken > i)) & (sd.tg_price_d > entry_d)
+        if not ok.any():
+            return None, "žiadna opačná likvidita"
+        order = np.flatnonzero(ok)[np.argsort(sd.tg_price_d[ok], kind="stable")]
+        rr_all = (sd.tg_price_d[order] - entry_d) / risk_d
+        mode = tg["mode"]
+        if mode == "nearest":
+            pick = 0 if rr_all[0] >= tg["min_rr"] else -1
+        else:
+            hits = np.flatnonzero(rr_all >= tg["min_rr"])
+            pick = int(hits[0]) if len(hits) else -1
+        if mode in ("fixed_rr", "htf"):
+            pick = 0  # TP pevne na min_rr, likvidita slúži iba na popis
+        if pick < 0:
+            return None, f"RR pod {tg['min_rr']} (najbližšia likvidita {rr_all[0]:.2f}R)"
+        tk = order[pick]
+        tp_d, rr = sd.tg_price_d[tk], float(rr_all[pick])
+        liq_rr = float(rr_all[max(pick, 0)])
+        tg_kind, tg_group = sd.tg_kind[tk], sd.tg_group[tk]
+        if mode in ("fixed_rr", "fixed_rr_liq", "htf"):
+            # fixed_rr_liq: TP na min_rr, ale iba keď je za ním likvidita (magnet)
+            tp_d, rr = entry_d + tg["min_rr"] * risk_d, float(tg["min_rr"])
+        elif tg.get("max_rr") and rr > tg["max_rr"]:
+            tp_d, rr = entry_d + tg["max_rr"] * risk_d, float(tg["max_rr"])
 
     # --- konfluencie (tagy)
     b, bsrc, d1b, w1b = effective_bias(ctx, i)
@@ -395,7 +411,7 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "entry": round(entry, 5),
         "sl": round(d * sl_d, 5),
         "tp": round(d * tp_d, 5),
-        "target_kind": sd.tg_kind[tk],
+        "target_kind": tg_kind,
         "rr": round(rr, 2),
         "sl_pips": round(sl_pips, 1),
         "expiry_ns": t + int(cfg["entry"].get("expiry_minutes") or cfg["entry"]["expiry_bars"] * 5) * 60 * 10**9,
@@ -408,7 +424,7 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "w1_bias": bias_mod.label(w1b),
         "bias_aligned": b == d,
         "w1_aligned": w1b == d,
-        "target_is_bias_dol": bool(b == d and sd.tg_group[tk] in ("pdh_pdl", "pwh_pwl")),
+        "target_is_bias_dol": bool(b == d and tg_group in ("pdh_pdl", "pwh_pwl")),
         "displacement": disp,
         "strong_body": strong_body,
         "h4_crt": _h4_crt(ctx, i, d),
@@ -419,10 +435,11 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "hour_ny": int(m["ny_min"][i] // 60),
         "sweep_depth_pips": round((level_d - ext) / pip, 1),
         "mss_bars": int(i - ext_idx),
-        "liq_rr": round(float(rr_all[max(pick, 0)]), 2),
+        "liq_rr": round(liq_rr, 2),
         "midnight_open": bool(not np.isnan(m["midnight_open"][i]) and (
             entry < m["midnight_open"][i] if d == 1 else entry > m["midnight_open"][i])),
         "smt": _smt(ctx, sd, ext_idx, i),
+        "htf_idm": bool(st.get("htf_idm", False)),
         "poi_sweep": bool(np.searchsorted(sd.liq_taken, i, "right") > np.searchsorted(sd.liq_taken, ev, "left")),
         "judas": bool(primary.startswith("ASIA") and in_window(int(m["ny_min"][i]), ctx.sessions["london"])),
     }
@@ -451,7 +468,7 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
     for key, name in (("require_htf_poi", "htf_poi"), ("require_h4_crt", "h4_crt"), ("require_inducement", "inducement"),
                       ("require_vp", "vp"), ("require_premium_discount", "premium_discount"),
                       ("require_midnight_open", "midnight_open"), ("require_smt", "smt"),
-                      ("require_poi_sweep", "poi_sweep")):
+                      ("require_poi_sweep", "poi_sweep"), ("require_htf_idm", "htf_idm")):
         if fl.get(key) and not s[name]:
             return f"chýba {name}"
     return ""
