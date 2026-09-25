@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import engine, notify, report, stats
+from .bias import label as bias_label
 from .config import apply_overrides, load_config
 from .context import build_context
 from .data import load_m1, load_recent
@@ -30,6 +31,7 @@ def _args():
     p.add_argument("--charts", type=int, default=0, help="koľko grafov obchodov vykresliť")
     p.add_argument("--set", action="append", default=[], metavar="KĽÚČ=HODNOTA", help="napr. filters.require_h4_crt=true")
     p.add_argument("--state", default="state/scan_state.json")
+    p.add_argument("--test-notify", action="store_true", help="scan: pošli na Telegram aj stavovú správu (test)")
     return p.parse_args()
 
 
@@ -106,7 +108,17 @@ def cmd_scan(cfg, a):
     for x in new:
         ts = pd.Timestamp(x["ns"], tz="UTC").tz_convert("America/New_York")
         notify.send(f"{x['text']}\n⏱ {ts:%d.%m. %H:%M} NY")
-    print(f"Nových upozornení: {len(new)} (posledná M5 sviečka {pd.Timestamp(now_ns, tz='UTC'):%Y-%m-%d %H:%M} UTC)")
+    last_bar = pd.Timestamp(now_ns, tz="UTC")
+    print(f"Nových upozornení: {len(new)} (posledná M5 sviečka {last_bar:%Y-%m-%d %H:%M} UTC)")
+    if a.test_notify:
+        b, bsrc, d1b, w1b = engine.effective_bias(ctx, len(ctx.m5["close_ns"]) - 1)
+        text = (f"✅ SMC bot funguje\n{cfg['instrument']}: {ctx.m5['close'][-1]:.5f}\n"
+                f"Posledná M5 sviečka: {last_bar.tz_convert('America/New_York'):%d.%m. %H:%M} NY\n"
+                f"Bias: {bias_label(b)} ({bsrc or '-'}) | D1 {bias_label(d1b)} | W1 {bias_label(w1b)}\n"
+                f"Dáta: {len(m1)} M1 sviečok od {m1.index[0]:%d.%m.%Y}\n"
+                f"Nových upozornení teraz: {len(new)}")
+        if not notify.send(text):
+            raise SystemExit("Testovaciu správu sa nepodarilo poslať na Telegram (skontroluj TELEGRAM_BOT_TOKEN a TELEGRAM_CHAT_ID).")
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_text(json.dumps({"last_ns": max([last] + [x["ns"] for x in new])}))
 

@@ -6,6 +6,11 @@ on:
     # GitHub spúšťa naplánované úlohy s oneskorením pár minút.
     - cron: "*/10 6-16 * * 1-5"
   workflow_dispatch:
+    inputs:
+      test:
+        description: "Poslať testovaciu správu na Telegram"
+        type: boolean
+        default: true
 
 concurrency:
   group: scan
@@ -40,7 +45,8 @@ jobs:
           OANDA_API_TOKEN: ${{ secrets.OANDA_API_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python -m smc_bot scan
+          TEST_NOTIFY: ${{ inputs.test && '--test-notify' || '' }}
+        run: python -m smc_bot scan $TEST_NOTIFY
       - name: Ulož stav
         if: always()
         uses: actions/cache/save@v4
