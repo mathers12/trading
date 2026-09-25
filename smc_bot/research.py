@@ -17,42 +17,41 @@ import pandas as pd
 from . import engine
 from .config import apply_overrides
 
-LIQ = {
-    "všetka": None,
-    "hlavná": ["PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "H1_SH", "H1_SL"],
-    "HTF": ["PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L"],
-}
+def _j(x) -> str:
+    """Hodnota pre --set (JSON je platný YAML)."""
+    import json
+
+    return json.dumps(x, ensure_ascii=False)
+
+
+HTF_LIQ = ["PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L"]
+# okná v miestnom čase (Bratislava); celé obchodné okno je 08:00–19:00
 WINDOWS = {
-    "00-14": ["00:00-14:00"],
-    "LO+NY": ["02:00-05:00", "07:00-11:00"],
-    "LO": ["01:00-05:00"],
-    "NY": ["07:00-11:00"],
+    "08-19": ["08:00-19:00"],
+    "LO 08-11": ["08:00-11:00"],
+    "LO+NY": ["08:00-11:00", "13:00-17:00"],
+    "SB": ["09:00-10:00", "16:00-17:00"],  # ICT Silver Bullet (03–04 a 10–11 NY)
 }
+
+# dimenzia -> {popis: [--set prepínače]}
 GRID = {
-    "liq": list(LIQ),
-    "okno": list(WINDOWS),
-    "tp": ["first_min_rr", "fixed_rr", "fixed_rr_liq"],
-    "min_sl": [3, 6],
-    "vstup": ["proximal", "ce"],
-    "vp": [False, True],
-    "h4crt": [False, True],
+    "liq": {"všetka": ["filters.sweep_kinds=null"], "HTF": [f"filters.sweep_kinds={_j(HTF_LIQ)}"]},
+    "okno": {k: [f"filters.signal_windows_local={_j(v)}"] for k, v in WINDOWS.items()},
+    "vstup": {"FVG": ["entry.type=fvg_or_ob", "entry.price=proximal"], "OTE": ["entry.type=ote"]},
+    "tp": {"2R": ["target.mode=fixed_rr"], "likv": ["target.mode=first_min_rr"]},
+    "MO": {"-": ["filters.require_midnight_open=false"], "áno": ["filters.require_midnight_open=true"]},
+    "h4crt": {"-": ["filters.require_h4_crt=false"], "áno": ["filters.require_h4_crt=true"]},
+    "slbuf": {"1": ["entry.sl_buffer_pips=1"], "3": ["entry.sl_buffer_pips=3"]},
 }
 
 _CTX = None
 _BASE = None
 _SPLIT = None
+_GRID = None
 
 
-def overrides(combo: dict) -> list[str]:
-    return [
-        f"filters.sweep_kinds={LIQ[combo['liq']]!r}".replace("None", "null").replace("'", '"'),
-        f"filters.signal_windows_ny={WINDOWS[combo['okno']]!r}".replace("'", '"'),
-        f"target.mode={combo['tp']}",
-        f"entry.min_sl_pips={combo['min_sl']}",
-        f"entry.price={combo['vstup']}",
-        f"filters.require_vp={str(combo['vp']).lower()}",
-        f"filters.require_h4_crt={str(combo['h4crt']).lower()}",
-    ]
+def overrides(combo: dict, grid: dict) -> list[str]:
+    return [o for dim, label in combo.items() for o in grid[dim][label]]
 
 
 def metrics(r: np.ndarray) -> dict:
@@ -73,7 +72,7 @@ def metrics(r: np.ndarray) -> dict:
 
 
 def _evaluate(combo: dict) -> dict:
-    cfg = apply_overrides(_BASE, overrides(combo))
+    cfg = apply_overrides(_BASE, overrides(combo, _GRID))
     _CTX.cfg = cfg
     setups = engine.run(_CTX)["setups"]
     rows = [(s["signal_ns"], s["r"]) for s in setups if s.get("status") == "FILLED" and not np.isnan(s.get("r", np.nan))]
@@ -85,10 +84,10 @@ def _evaluate(combo: dict) -> dict:
 
 
 def run_grid(ctx, cfg: dict, split: str, grid: dict | None = None, workers: int | None = None) -> pd.DataFrame:
-    global _CTX, _BASE, _SPLIT
+    global _CTX, _BASE, _SPLIT, _GRID
     _CTX, _BASE = ctx, cfg
     _SPLIT = pd.Timestamp(split, tz="UTC").value
-    grid = grid or GRID
+    grid = _GRID = grid or GRID
     combos = [dict(zip(grid, vals)) for vals in itertools.product(*grid.values())]
     workers = workers or os.cpu_count() or 1
     print(f"Testujem {len(combos)} kombinácií na {workers} jadrách, OOS od {split}", flush=True)
@@ -109,7 +108,7 @@ def rank(df: pd.DataFrame, min_is: int = 60) -> pd.DataFrame:
 
 FEATURES = ["direction", "session", "hour_ny", "sweep_kind", "target_kind", "entry_type", "bias_source",
             "w1_aligned", "target_is_bias_dol", "strong_body", "h4_crt", "htf_poi", "vp", "inducement",
-            "premium_discount", "sl_bucket", "depth_bucket", "mss_bucket", "liq_rr_bucket"]
+            "premium_discount", "midnight_open", "judas", "sl_bucket", "depth_bucket", "mss_bucket", "liq_rr_bucket"]
 
 
 def feature_table(trades: pd.DataFrame, split: str) -> pd.DataFrame:

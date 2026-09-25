@@ -1,6 +1,7 @@
 # Nastavenia SMC bota. Časy sú v New York čase (NY), ceny v pipoch (EUR/USD: 1 pip = 0.0001).
 instrument: EUR_USD
 pip: 0.0001
+local_timezone: Europe/Bratislava   # tvoj čas (letný/zimný čas sa rieši sám)
 
 data:
   # dukascopy = bezplatná história M1 bid/ask bez registrácie (živé skenovanie dopĺňa
@@ -76,7 +77,10 @@ target:
   kinds: [pdh_pdl, pwh_pwl, asia, h1_swings, m15_swings]
 
 filters:                          # true = setup musí mať túto konfluenciu
-  signal_windows_ny: ["00:00-14:00"]
+  signal_windows_local: ["08:00-19:00"]   # obchodný čas v tvojom čase
+  signal_windows_ny: []                   # voliteľne ďalšie zúženie v NY čase (napr. killzones)
+  sweep_kinds: null                       # napr. [PDH, PDL, ASIA_H, ASIA_L] = iba tieto likvidity
+  require_midnight_open: false            # ICT: long pod NY midnight open, short nad ním
   require_killzone: false
   require_h4_crt: false
   require_htf_poi: false
@@ -89,7 +93,7 @@ risk:
   max_trades_per_day: 2
   max_losses_per_day: 2
   one_position_at_a_time: true
-  eod_exit_ny: "16:00"            # day trading: o 16:00 NY sa všetko zatvorí
+  eod_exit_local: "19:00"         # day trading: o 19:00 tvojho času sa všetko zatvorí
 
 live:
   lookback_days: 25

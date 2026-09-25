@@ -108,6 +108,13 @@ def build_context(m1: pd.DataFrame, cfg: dict) -> Context:
         "day_low": pd.Series(l).groupby(tday.to_numpy()).cummin().to_numpy(),
     }
 
+    # --- ICT midnight open: otvárajúca cena o 00:00 NY (platí 00:00–17:00 NY toho dňa)
+    ny_date = m5.index.tz_convert("America/New_York").normalize().tz_localize(None)
+    first_open = pd.Series(o).groupby(ny_date.to_numpy()).transform("first").to_numpy()
+    first_min = pd.Series(ctx.m5["ny_min"]).groupby(ny_date.to_numpy()).transform("first").to_numpy()
+    valid = (first_min < 30) & (ctx.m5["ny_min"] < 17 * 60)
+    ctx.m5["midnight_open"] = np.where(valid, first_open, np.nan)
+
     # --- D1 / W1 / H4 + bias
     for name, tf in (("d1", "D1"), ("w1", "W1"), ("h4", "H4")):
         df = frames[tf]

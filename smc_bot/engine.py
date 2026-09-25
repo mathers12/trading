@@ -156,9 +156,9 @@ def _session(ctx: Context, minute: int) -> str:
     return "mimo"
 
 
-def _eod_ns(tday: pd.Timestamp, eod_text: str) -> int:
+def _eod_ns(tday: pd.Timestamp, eod_text: str, tz: str = NY) -> int:
     hh, mm = (int(x) for x in eod_text.split(":"))
-    ts = pd.Timestamp(tday.year, tday.month, tday.day, hh, mm).tz_localize(NY)
+    ts = pd.Timestamp(tday.year, tday.month, tday.day, hh, mm).tz_localize(tz)
     return int(ts.tz_convert("UTC").value)
 
 
@@ -274,6 +274,12 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
                 if px < sd.C[i] and (k >= i or sd.L[k + 1:i + 1].min() > px or k + 1 > i):
                     entry_d, entry_type = px, "OB"
                 break
+    if en["type"] == "ote":
+        # ICT OTE: 70,5 % spätného pohybu displacementu (extrém sweepu -> vrchol pohybu)
+        leg_high = sd.H[ext_idx:i + 1].max()
+        px = leg_high - en.get("ote_level", 0.705) * (leg_high - ext)
+        if px < sd.C[i]:
+            entry_d, entry_type = px, "OTE"
     if entry_d is None:
         return None, "žiadny FVG/OB na vstup"
 
@@ -350,7 +356,8 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "rr": round(rr, 2),
         "sl_pips": round(sl_pips, 1),
         "expiry_ns": t + cfg["entry"]["expiry_bars"] * 5 * 60 * 10**9,
-        "eod_ns": _eod_ns(tday, cfg["risk"]["eod_exit_ny"]),
+        "eod_ns": (_eod_ns(tday, cfg["risk"]["eod_exit_local"], cfg["local_timezone"]) if cfg["risk"].get("eod_exit_local")
+                   else _eod_ns(tday, cfg["risk"]["eod_exit_ny"])),
         "session": _session(ctx, int(m["ny_min"][i])),
         "bias": bias_mod.label(b),
         "bias_source": bsrc,
@@ -370,6 +377,9 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "sweep_depth_pips": round((level_d - ext) / pip, 1),
         "mss_bars": int(i - ext_idx),
         "liq_rr": round(float(rr_all[max(pick, 0)]), 2),
+        "midnight_open": bool(not np.isnan(m["midnight_open"][i]) and (
+            entry < m["midnight_open"][i] if d == 1 else entry > m["midnight_open"][i])),
+        "judas": bool(primary.startswith("ASIA") and in_window(int(m["ny_min"][i]), ctx.sessions["london"])),
     }
     return setup, ""
 
@@ -382,6 +392,11 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
         return "po konci obchodného dňa"
     if windows and not any(in_window(minute, w) for w in windows):
         return "mimo povoleného času"
+    local_windows = fl.get("signal_windows_local")
+    if local_windows:
+        lt = s["signal_time"].tz_convert(cfg["local_timezone"])
+        if not any(in_window(lt.hour * 60 + lt.minute, parse_window(w)) for w in local_windows):
+            return "mimo obchodného času"
     if fl["require_killzone"] and not any(in_window(minute, w) for w in killzones):
         return "mimo killzone"
     if fl.get("sweep_kinds") and s["sweep_kind"] not in fl["sweep_kinds"]:
@@ -389,8 +404,9 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
     if cfg["bias"]["filter"] and not s["bias_aligned"]:
         return f"proti biasu ({s['bias']})"
     for key, name in (("require_htf_poi", "htf_poi"), ("require_h4_crt", "h4_crt"), ("require_inducement", "inducement"),
-                      ("require_vp", "vp"), ("require_premium_discount", "premium_discount")):
-        if fl[key] and not s[name]:
+                      ("require_vp", "vp"), ("require_premium_discount", "premium_discount"),
+                      ("require_midnight_open", "midnight_open")):
+        if fl.get(key) and not s[name]:
             return f"chýba {name}"
     return ""
 

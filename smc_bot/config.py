@@ -9,6 +9,7 @@ import yaml
 DEFAULTS: dict = {
     "instrument": "EUR_USD",
     "pip": 0.0001,
+    "local_timezone": "Europe/Bratislava",
     "data": {"source": "dukascopy", "start": "2024-01-01", "end": None, "cache_dir": "data", "assumed_spread_pips": 0.8},
     "oanda": {"environment": "practice"},
     "sessions": {
@@ -51,7 +52,8 @@ DEFAULTS: dict = {
         "kinds": ["pdh_pdl", "pwh_pwl", "asia", "h1_swings", "m15_swings"],
     },
     "filters": {
-        "signal_windows_ny": ["00:00-14:00"],
+        "signal_windows_ny": [],
+        "signal_windows_local": ["08:00-19:00"],
         "sweep_kinds": None,
         "require_htf_poi": False,
         "require_h4_crt": False,
@@ -59,6 +61,7 @@ DEFAULTS: dict = {
         "require_vp": False,
         "require_premium_discount": False,
         "require_killzone": False,
+        "require_midnight_open": False,
     },
     "risk": {
         "risk_per_trade_pct": 1.0,
@@ -66,6 +69,7 @@ DEFAULTS: dict = {
         "max_losses_per_day": 2,
         "one_position_at_a_time": True,
         "eod_exit_ny": "16:00",
+        "eod_exit_local": "19:00",
     },
     "live": {"lookback_days": 25, "alert_max_age_minutes": 60},
 }

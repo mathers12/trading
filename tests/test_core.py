@@ -111,3 +111,14 @@ def test_backtest_runs_on_sample():
         long = s["direction"] == "LONG"
         assert (s["sl"] < s["entry"] < s["tp"]) if long else (s["tp"] < s["entry"] < s["sl"])
         assert s["rr"] >= cfg["target"]["min_rr"]
+
+
+def test_local_trading_window_and_exit():
+    cfg = load_config("config.yaml", ["bias.filter=false"])
+    res = engine.run(build_context(make_sample(days=40), cfg))
+    assert res["setups"]
+    for s in res["setups"]:
+        lt = s["signal_time"].tz_convert("Europe/Bratislava")
+        assert 8 * 60 <= lt.hour * 60 + lt.minute < 19 * 60
+        if s.get("exit_ns"):
+            assert pd.Timestamp(s["exit_ns"], tz="UTC").tz_convert("Europe/Bratislava").hour < 19 or s["result"] == "EOD"
