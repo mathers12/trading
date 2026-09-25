@@ -45,18 +45,37 @@ def decode(raw: bytes, day: pd.Timestamp, pt: float) -> pd.DataFrame:
     return pd.DataFrame({"open": o, "high": high, "low": low, "close": c, "volume": rec["v"].astype(float)}, index=idx)
 
 
-def _get(session: requests.Session, url: str) -> bytes:
-    for attempt in range(6):
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+    "Accept": "*/*",
+    "Referer": "https://www.dukascopy.com/",
+}
+
+
+class DownloadError(RuntimeError):
+    pass
+
+
+def _session() -> requests.Session:
+    s = requests.Session()
+    s.headers.update(HEADERS)
+    return s
+
+
+def _get(session: requests.Session, url: str, attempts: int = 5) -> bytes:
+    last = ""
+    for attempt in range(attempts):
         try:
             r = session.get(url, timeout=30)
             if r.status_code == 404:
                 return b""
             if r.status_code == 200:
                 return r.content
-        except requests.RequestException:
-            pass
-        time.sleep(1.5 * 2 ** attempt)
-    raise RuntimeError(f"Dukascopy: nepodarilo sa stiahnuť {url}")
+            last = f"HTTP {r.status_code}: {r.text[:120]!r}"
+        except requests.RequestException as e:
+            last = f"{type(e).__name__}: {e}"
+        time.sleep(1.0 * 2 ** attempt)
+    raise DownloadError(f"Dukascopy: nepodarilo sa stiahnuť {url} ({last})")
 
 
 def fetch_day(session: requests.Session, instrument: str, day: pd.Timestamp) -> pd.DataFrame:
@@ -81,8 +100,12 @@ def fetch_day(session: requests.Session, instrument: str, day: pd.Timestamp) -> 
     return out
 
 
-def fetch_range(instrument: str, start: pd.Timestamp, end: pd.Timestamp, workers: int = 8) -> pd.DataFrame:
-    """Stiahne celé dni [start, end) paralelne. Soboty preskakuje (trh je zavretý)."""
+def fetch_range(instrument: str, start: pd.Timestamp, end: pd.Timestamp, workers: int = 4) -> pd.DataFrame:
+    """Stiahne celé dni [start, end) paralelne. Soboty preskakuje (trh je zavretý).
+
+    Dni, ktoré sa nepodarí stiahnuť, sa na konci skúsia ešte raz po jednom.
+    Ak zlyhá viac ako 2 % dní, skončí chybou, inak ich iba vypíše.
+    """
     days = [d for d in pd.date_range(start.normalize(), end.normalize(), freq="D", inclusive="left") if d.weekday() != 5]
     if not days:
         return pd.DataFrame()
@@ -90,17 +113,42 @@ def fetch_range(instrument: str, start: pd.Timestamp, end: pd.Timestamp, workers
 
     def one(d):
         if not hasattr(local, "session"):
-            local.session = requests.Session()
-        return fetch_day(local.session, instrument, d.tz_localize(None))
+            local.session = _session()
+        try:
+            return d, fetch_day(local.session, instrument, d.tz_localize(None)), ""
+        except DownloadError as e:
+            return d, None, str(e)
 
     frames: list[pd.DataFrame] = []
+    failed: list[tuple[pd.Timestamp, str]] = []
     done = 0
     with ThreadPoolExecutor(workers) as pool:
-        for df in pool.map(one, days):
-            frames.append(df)
+        for d, df, err in pool.map(one, days):
+            if df is None:
+                failed.append((d, err))
+                print(f"  ! {d:%Y-%m-%d}: {err}", flush=True)
+                if len(failed) >= 8 and not frames:
+                    pool.shutdown(wait=False, cancel_futures=True)
+                    raise DownloadError(f"Dukascopy nevracia dáta (prvých {len(failed)} dní zlyhalo). Posledná chyba: {err}")
+            else:
+                frames.append(df)
             done += 1
             if done % 50 == 0 or done == len(days):
                 print(f"  Dukascopy: {done}/{len(days)} dní", flush=True)
+    if failed:
+        print(f"  Opakujem {len(failed)} nestiahnutých dní…", flush=True)
+        session, still = _session(), []
+        for d, _ in failed:
+            time.sleep(2)
+            try:
+                frames.append(fetch_day(session, instrument, d.tz_localize(None)))
+            except DownloadError as e:
+                still.append((d, str(e)))
+        if still:
+            msg = f"Nestiahnuté dni ({len(still)}/{len(days)}): " + ", ".join(f"{d:%Y-%m-%d}" for d, _ in still[:10])
+            if len(still) > 0.02 * len(days):
+                raise DownloadError(msg + f"\nPosledná chyba: {still[-1][1]}")
+            print("  VAROVANIE: " + msg, flush=True)
     frames = [f for f in frames if len(f)]
     return pd.concat(frames).sort_index() if frames else pd.DataFrame()
 
