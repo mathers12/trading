@@ -36,6 +36,8 @@ Každú takú zmenu stručne zdôvodni používateľovi a zapíš sem.
 - Volume je volume jedného brokera, nie celého trhu, takže volume profile je iba aproximácia.
 
 ## Pravidlá backtestu a výskumu
+- **Používateľ chce rýchle testy: vždy iba vzorka 1 mesiaca** (lokálne, napr. `--start 2025-07-01 --end 2025-08-01 --set smt.instrument=null`),
+  nie celé roky na Actions. Cieľ na vzorke: ≥ 1 obchod denne (~20/mesiac), úspešnosť, PF, R.
 - Žiadne nazeranie do budúcnosti: všetko má čas, odkedy je známe (`available_ns`, `close_time`). Stráži to `tests/test_core.py::test_no_lookahead`.
 - Simulácia na M1 bid/ask, konzervatívne: SL aj TP v jednej sviečke = SL, v sviečke naplnenia sa TP nepočíta, o 16:00 NY sa obchod zatvorí.
 - **Výskum vždy s in-sample / out-of-sample** (predvolene OOS od 2025-07-01). Pravidlo má výhodu, iba ak drží aj na OOS.
@@ -66,6 +68,9 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   - Judas/turtle soup (GBP): PF 0,9–1,13 v IS, OOS < 1 → neobstál.
   - Návrat do value area (GBP): ~0,06 obchodu/deň, PF < 1 → neobstál (podozrivo málo signálov, skontrolovať podmienku).
   - EUR behy POI/Judas/VA dobiehali (sťahovanie EUR 2020–23 na Actions).
+- **HTF pullback model** (dokument používateľa: H1 BOS → pullback do golden pocketu + FVG H1/M15 → inducement → M1/M5 MSS; `smc_bot/htf.py`,
+  `liquidity.external=["htf_pb"]`). Vzorka EUR/USD 07/2025: iba prvý dotyk = 1–5 obchodov/mesiac.
+  Uvoľnené (M1 MSS, fib 0,5–0,79, každý návrat do zóny `htf.max_touches=99`, TP 2R): ~1 obchod/deň, úspešnosť 36–38 %, PF 1,1–1,2.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)

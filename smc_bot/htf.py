@@ -93,18 +93,23 @@ def events(ctx, d: int) -> list[tuple]:
     nsw = cfg["structure"]["swing_strength_m5"]
     ltf_sl = np.flatnonzero(swing_lows(L, nsw))
     f_min, f_max = hc["fib_min"], hc["fib_max"]
-    done: set[int] = set()
+    touches: dict[int, int] = {}  # počet vstupov do zóny v danom impulze (bos)
+    left: dict[int, bool] = {}  # cena od posledného vstupu opustila zónu
+    max_t = int(hc.get("max_touches", 1))
     out = []
     for i in np.flatnonzero((kidx >= 0)):
         k = kidx[i]
-        if trend[k] != 1 or bos[k] in done:
+        if trend[k] != 1 or touches.get(bos[k], 0) >= max_t:
             continue
         R = hi[k] - lo[k]
         if R <= 0:
             continue
         top_z = hi[k] - f_min * R  # začiatok golden pocketu
         bot_z = hi[k] - f_max * R
-        if L[i] > top_z or L[i] < lo[k]:
+        if L[i] > top_z:
+            left[bos[k]] = True
+            continue
+        if L[i] < lo[k] or not left.get(bos[k], True):
             continue
         t = int(t5[i])
         leg_start = int(h_open[lo_i[k]])
@@ -114,7 +119,8 @@ def events(ctx, d: int) -> list[tuple]:
             if not ok.any():
                 continue
             poi = f"{fv_tf[np.flatnonzero(ok)[0]]}_FVG"
-        done.add(bos[k])
+        touches[bos[k]] = touches.get(bos[k], 0) + 1
+        left[bos[k]] = False
         # inducement: LTF swing low potvrdený počas pullbacku (po vrchole impulzu), nad zónou -> teraz vybratý
         hi_t = int(h_open[hi_i[k]])
         js = ltf_sl[(ltf_sl + nsw < i)]
