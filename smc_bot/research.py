@@ -105,3 +105,31 @@ def rank(df: pd.DataFrame, min_is: int = 60) -> pd.DataFrame:
     """Zoradí podľa IS priemerného R (iba kombinácie s dostatkom obchodov)."""
     ok = df[df["IS_n"] >= min_is].copy()
     return ok.sort_values(["IS_avgR", "IS_PF"], ascending=False)
+
+
+FEATURES = ["direction", "session", "hour_ny", "sweep_kind", "target_kind", "entry_type", "bias_source",
+            "w1_aligned", "target_is_bias_dol", "strong_body", "h4_crt", "htf_poi", "vp", "inducement",
+            "premium_discount", "sl_bucket", "depth_bucket", "mss_bucket", "liq_rr_bucket"]
+
+
+def feature_table(trades: pd.DataFrame, split: str) -> pd.DataFrame:
+    """Úspešnosť a priemerné R podľa jednotlivých vlastností obchodu, zvlášť IS a OOS."""
+    t = trades[trades["status"] == "FILLED"].dropna(subset=["r"]).copy()
+    if not len(t):
+        return pd.DataFrame()
+    t["oos"] = t["signal_time"] >= pd.Timestamp(split, tz="UTC")
+    t["sl_bucket"] = pd.cut(t["sl_pips"], [0, 4, 6, 9, 13, 100]).astype(str)
+    t["depth_bucket"] = pd.cut(t["sweep_depth_pips"], [-1, 1, 3, 6, 100]).astype(str)
+    t["mss_bucket"] = pd.cut(t["mss_bars"], [-1, 3, 8, 16, 100]).astype(str)
+    t["liq_rr_bucket"] = pd.cut(t["liq_rr"], [0, 2.5, 3.5, 5, 1000]).astype(str)
+    for c in ("htf_poi", "vp"):
+        t[c] = t[c].fillna("").map(lambda v: bool(v))
+    rows = []
+    for f in FEATURES:
+        for val, g in t.groupby(f):
+            row = {"vlastnosť": f, "hodnota": str(val)}
+            for name, part in (("IS", g[~g["oos"]]), ("OOS", g[g["oos"]])):
+                m = metrics(part["r"].to_numpy())
+                row.update({f"{name}_n": m["n"], f"{name}_win%": m["win%"], f"{name}_avgR": m["avgR"]})
+            rows.append(row)
+    return pd.DataFrame(rows)
