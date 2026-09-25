@@ -3,6 +3,15 @@
 SMC/ICT signálny bot a backtester pre EUR/USD. Bot obchody **nezadáva**, iba posiela upozornenia na Telegram.
 Používateľ je trader (day trading). Komunikuj s ním **po slovensky**, texty v kóde, reportoch a commitoch tiež po slovensky.
 
+## Šetrenie tokenov (dôležité)
+- Odpovedaj stručne a vecne; žiadne opakovanie zadania, dlhé úvody ani zhrnutia toho, čo je vidieť v diffe.
+- Nečítaj celé súbory, keď stačí časť: najprv `grep`/`Grep`, potom `Read` s `offset`/`limit`. Súbor, ktorý už poznáš, nečítaj znova.
+- Výstupy príkazov skracuj (`| tail -20`, `-q` pri pytest, `head_limit`). Logy GitHub jobov čítaj s `tail_lines`, nie celé.
+- Úpravy rob cielene (`Edit`), nie prepisovaním celých súborov. Viac nezávislých krokov spoj do jedného volania.
+- Nespúšťaj subagentov a dlhé prieskumy bez potreby; na tento malý projekt stačí priama práca.
+- Nové dlhé behy (research, backtest) spúšťaj iba s jasnou hypotézou; nekontroluj ich opakovane v krátkych intervaloch.
+- Pri nejasnosti sa radšej krátko opýtaj, než robiť veľkú prácu naslepo.
+
 ## Stratégia používateľa (zdroj pravdy – nemeň bez jeho súhlasu)
 - **Bias D1** z dvoch posledných uzavretých sviečok (C1, C2), pravidlo z jeho obrázka (`smc_bot/bias.py`):
   close nad high C1 alebo sweep low C1 a návrat do rozsahu = bullish; zrkadlovo bearish; inside bar alebo vybraté obe strany = avoid.
