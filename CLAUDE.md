@@ -60,6 +60,12 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
 - Nové: SMT divergencia s GBP/USD (`smt`, `filters.require_smt`), londýnsky rozsah ako likvidita (LON_H/LON_L), `structure.timeframe` M5/M1.
 - Doteraz nevyskúšané nápady: SMT ako filter/vlastnosť pre ML na oboch pároch, správy (NFP/CPI/FOMC), denná volatilita (ATR),
   weekly profil, vstup na retest MSS úrovne, kombinácia trhového vstupu s H4 CRT/SMT.
+- **Kolo 2026-09-25 (stratégie 1–4, IS 2020–2023 / OOS 2024+ / VER 2025-07+, `research --grid poi|asia_bo|asia_fo|va --verify`):**
+  - POI/supply-demand (GBP): 0,04–0,4 obchodu/deň, PF ~0,85–1,05; najlepšie H1 zóna + trh + sweep v zóne PF 1,45/1,08/1,02 (iba ~46 obchodov) → bez výhody.
+  - Breakout Ázie: EUR 08–13, trh, SL na opačnej strane, 3R: PF 1,02/1,05/1,07 pri ~0,9 obchodu/deň; GBP s D1 smerom, SL stred, 3R: 1,08/1,04/1,07 (0,25–0,4/deň) → tesne nad nulou, nie cieľ.
+  - Judas/turtle soup (GBP): PF 0,9–1,13 v IS, OOS < 1 → neobstál.
+  - Návrat do value area (GBP): ~0,06 obchodu/deň, PF < 1 → neobstál (podozrivo málo signálov, skontrolovať podmienku).
+  - EUR behy POI/Judas/VA dobiehali (sťahovanie EUR 2020–23 na Actions).
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
