@@ -361,7 +361,8 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         order = np.flatnonzero(ok)[np.argsort(sd.tg_price_d[ok], kind="stable")]
         rr_all = (sd.tg_price_d[order] - entry_d) / risk_d
         mode = tg["mode"]
-        if mode == "nearest":
+        if mode in ("nearest", "fixed_rr_clear"):
+            # fixed_rr_clear: najbližšia opačná likvidita (S/R) nesmie byť bližšie ako min_rr -> voľná cesta k TP
             pick = 0 if rr_all[0] >= tg["min_rr"] else -1
         else:
             hits = np.flatnonzero(rr_all >= tg["min_rr"])
@@ -374,7 +375,7 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         tp_d, rr = sd.tg_price_d[tk], float(rr_all[pick])
         liq_rr = float(rr_all[max(pick, 0)])
         tg_kind, tg_group = sd.tg_kind[tk], sd.tg_group[tk]
-        if mode in ("fixed_rr", "fixed_rr_liq", "htf"):
+        if mode in ("fixed_rr", "fixed_rr_liq", "htf", "fixed_rr_clear"):
             # fixed_rr_liq: TP na min_rr, ale iba keď je za ním likvidita (magnet)
             tp_d, rr = entry_d + tg["min_rr"] * risk_d, float(tg["min_rr"])
         elif tg.get("max_rr") and rr > tg["max_rr"]:
@@ -469,6 +470,8 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
     minute = int(s["signal_time"].tz_convert(NY).hour * 60 + s["signal_time"].tz_convert(NY).minute)
     if s["signal_ns"] >= s["eod_ns"]:
         return "po konci obchodného dňa"
+    if fl.get("avoid_strong_body") and s["strong_body"]:
+        return "MSS jednou extrémnou sviečkou (špička)"
     if fl.get("max_adr_used") and s["adr_used"] == s["adr_used"] and s["adr_used"] > fl["max_adr_used"]:
         return f"denný rozsah vyčerpaný ({s['adr_used']:.0%} ADR)"
     if news.blocked(cfg, s["signal_ns"]):
