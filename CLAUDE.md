@@ -39,8 +39,25 @@ Každú takú zmenu stručne zdôvodni používateľovi a zapíš sem.
 - Simulácia na M1 bid/ask, konzervatívne: SL aj TP v jednej sviečke = SL, v sviečke naplnenia sa TP nepočíta, o 16:00 NY sa obchod zatvorí.
 - **Výskum vždy s in-sample / out-of-sample** (predvolene OOS od 2025-07-01). Pravidlo má výhodu, iba ak drží aj na OOS.
   Nepreučovať a výsledky podávať pravdivo, aj keď cieľ nie je dosiahnutý.
-- Výsledky základného modelu (2024-01 – 2026-09): 421 obchodov, 32 % úspešnosť, PF 0,98, teda bez výhody.
-  Najsľubnejší bol filter volume profile (PF 1,16, iba 89 obchodov). Premium/discount v súčasnej definícii škodí (treba sa spýtať, ako ho určuje).
+
+## Požiadavky používateľa (aktuálne)
+- Iba **EUR/USD**, prípadne **GBP/USD**. Obchodný čas **08:00–19:00 Europe/Bratislava** (signály aj uzavretie o 19:00).
+- Cieľ: **aspoň 1 obchod denne**, **PF ≥ 2**, **RR 1:2**, **úspešnosť ≥ 50 %**. Repozitár zostáva verejný.
+
+## Zistenia z výskumu (stav 2026-09-25)
+Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ (2020–23 sa sťahovalo).
+- Základný model (sweep → M5 MSS → FVG, TP na likvidite): PF ~0,95–0,98, bez výhody.
+- ~1 100 kombinácií (`research --grid ict|ict2|denny|freq`, IS 2024-01–2025-06, OOS 2025-07–2026-09):
+  pomáhali OTE 70,5 %, okná Londýn 08–11 + Silver Bullet 16–17 (lokálny čas), H4 CRT, SL rezerva 3 pipy, HTF likvidita.
+- **Kandidát A** (LO+SB, OTE 0,705, H4 CRT, SL +3 pipy, TP 2R): 2024–26 PF 1,46/1,83, ale na nevidených
+  **2020–2023 PF 0,79 (28 %) → neobstál**. Výhoda z 2024–26 bola náhoda alebo trhový režim.
+- Frekvencia vs. kvalita: viac obchodov = menšia výhoda. M5 najviac ~0,6 obchodu/deň pri PF ~1,1; **M1** až 1,8/deň, ale PF < 1 (spread).
+- OTE limitka: ~60 % setupov „ušlo“ (TP pred vstupom), vypĺňajú sa hlavne horšie obchody → pridaný trhový vstup po MSS (`entry.type=market`).
+- ML filter (`python -m smc_bot ml`, gradient boosting na vlastnostiach setupov): bez prediktívnej sily (OOS PF ~1,0–1,16).
+- Nové: SMT divergencia s GBP/USD (`smt`, `filters.require_smt`), londýnsky rozsah ako likvidita (LON_H/LON_L), `structure.timeframe` M5/M1.
+- Doteraz nevyskúšané nápady: SMT ako filter/vlastnosť pre ML na oboch pároch, správy (NFP/CPI/FOMC), denná volatilita (ATR),
+  weekly profil, vstup na retest MSS úrovne, kombinácia trhového vstupu s H4 CRT/SMT.
+- Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Príkazy
 ```bash
