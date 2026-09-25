@@ -77,7 +77,7 @@ def _zones_for_tf(df: pd.DataFrame, tf: str, cfg: dict) -> pd.DataFrame:
     return z
 
 
-def build_context(m1: pd.DataFrame, cfg: dict) -> Context:
+def build_context(m1: pd.DataFrame, cfg: dict, smt_m1: pd.DataFrame | None = None) -> Context:
     pip = float(cfg["pip"])
     base_tf = cfg["structure"].get("timeframe", "M5")  # timeframe pre sweep/MSS/vstup
     frames = {tf: resample(m1, tf) for tf in dict.fromkeys((base_tf, "M5", "M15", "H1", "H4", "D1", "W1"))}
@@ -126,6 +126,13 @@ def build_context(m1: pd.DataFrame, cfg: dict) -> Context:
     ctx.m5["d1_last"] = np.searchsorted(ctx.d1["close_ns"], close_ns, "right") - 1
     ctx.m5["w1_last"] = np.searchsorted(ctx.w1["close_ns"], close_ns, "right") - 1
     ctx.m5["h4_last"] = np.searchsorted(ctx.h4["close_ns"], close_ns, "right") - 1
+
+    # --- SMT: korelovaný pár (napr. GBP/USD) zarovnaný na sviečky hlavného páru
+    if smt_m1 is not None and len(smt_m1):
+        other = resample(smt_m1, cfg["structure"].get("timeframe", "M5"))
+        other = other.reindex(m5.index)
+        ctx.m5["smt_high"] = other["high"].to_numpy()
+        ctx.m5["smt_low"] = other["low"].to_numpy()
 
     ctx.levels = _build_levels(ctx)
     zones = [_zones_for_tf(frames[tf], tf, cfg) for tf in sorted(set(cfg["poi"]["timeframes"]))]

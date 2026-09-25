@@ -15,7 +15,7 @@ import pandas as pd
 
 from . import engine, notify, report, stats
 from .bias import label as bias_label
-from .config import apply_overrides, load_config
+from .config import apply_overrides, for_instrument, load_config
 from .context import build_context
 from .data import load_m1, load_recent
 
@@ -37,6 +37,18 @@ def _args():
     return p.parse_args()
 
 
+def _load_smt(cfg, a):
+    """Korelovaný pár pre SMT divergenciu (config smt.instrument), inak None."""
+    inst = cfg.get("smt", {}).get("instrument")
+    if not inst or inst == cfg["instrument"] or (a.source or cfg["data"]["source"]) != "dukascopy":
+        return None
+    return load_m1(for_instrument(cfg, inst), a.source, a.start, a.end)
+
+
+def _ctx(cfg, a, m1):
+    return build_context(m1, cfg, _load_smt(cfg, a))
+
+
 def _load(cfg, a):
     m1 = load_m1(cfg, a.source, a.start, a.end)
     if not len(m1):
@@ -47,7 +59,7 @@ def _load(cfg, a):
 
 def cmd_backtest(cfg, a):
     m1 = _load(cfg, a)
-    ctx = build_context(m1, cfg)
+    ctx = _ctx(cfg, a, m1)
     res = engine.run(ctx)
     trades = report.to_frame(res["setups"])
     out = Path(a.out or f"reports/{pd.Timestamp.now():%Y%m%d_%H%M%S}")
@@ -74,7 +86,7 @@ VARIANTS = [
 
 def cmd_compare(cfg, a):
     m1 = _load(cfg, a)
-    ctx = build_context(m1, cfg)
+    ctx = _ctx(cfg, a, m1)
     rows = []
     for name, sets in VARIANTS:
         ctx.cfg = apply_overrides(cfg, sets)
@@ -97,7 +109,7 @@ def cmd_scan(cfg, a):
         m1 = load_m1(cfg, a.source, a.start, a.end)
     else:
         m1 = load_recent(cfg, cfg["live"]["lookback_days"])
-    ctx = build_context(m1, cfg)
+    ctx = build_context(m1, cfg)  # živé skenovanie zatiaľ bez SMT (šetrí dáta a čas)
     res = engine.run(ctx, simulate_trades=False, collect_alerts=True)
     state_path = Path(a.state)
     state = json.loads(state_path.read_text()) if state_path.exists() else {}
@@ -129,7 +141,7 @@ def cmd_research(cfg, a):
     from . import research
 
     m1 = _load(cfg, a)
-    ctx = build_context(m1, cfg)
+    ctx = _ctx(cfg, a, m1)
     df = research.run_grid(ctx, cfg, a.split, research.GRIDS[a.grid])
     out = Path(a.out or f"reports/research_{pd.Timestamp.now():%Y%m%d_%H%M%S}")
     out.mkdir(parents=True, exist_ok=True)
@@ -154,7 +166,7 @@ def cmd_ml(cfg, a):
     from . import ml
 
     m1 = _load(cfg, a)
-    res = ml.run(build_context(m1, cfg), cfg, a.split)
+    res = ml.run(_ctx(cfg, a, m1), cfg, a.split)
     pd.set_option("display.width", 250)
     print(f"Setupov: IS {res['n_is']}, OOS {res['n_oos']}")
     print(res["table"].to_string(index=False))

@@ -154,7 +154,7 @@ def rank(df: pd.DataFrame, min_is: int = 60) -> pd.DataFrame:
 
 FEATURES = ["direction", "session", "hour_ny", "sweep_kind", "target_kind", "entry_type", "bias_source",
             "w1_aligned", "target_is_bias_dol", "strong_body", "h4_crt", "htf_poi", "vp", "inducement",
-            "premium_discount", "midnight_open", "judas", "sl_bucket", "depth_bucket", "mss_bucket", "liq_rr_bucket"]
+            "premium_discount", "midnight_open", "judas", "smt", "sl_bucket", "depth_bucket", "mss_bucket", "liq_rr_bucket"]
 
 
 def feature_table(trades: pd.DataFrame, split: str) -> pd.DataFrame:

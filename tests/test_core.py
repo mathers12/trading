@@ -124,3 +124,12 @@ def test_local_trading_window_and_exit():
         assert (eod.hour, eod.minute) == (19, 0)
         if s.get("exit_ns"):
             assert s["exit_ns"] <= s["eod_ns"] + 60 * 10**9  # najneskôr o 19:00 (+ posledná M1 sviečka)
+
+
+def test_smt_tag_with_second_pair():
+    cfg = load_config("config.yaml", ["bias.filter=false"])
+    m1 = make_sample(days=40)
+    other = make_sample(days=40, seed=11)
+    setups = engine.run(build_context(m1, cfg, other))["setups"]
+    assert setups and all(isinstance(s["smt"], bool) for s in setups)
+    assert all(s["smt"] is False for s in engine.run(build_context(m1, cfg))["setups"])

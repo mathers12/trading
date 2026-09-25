@@ -27,7 +27,7 @@ LOOSE = [
 ]
 CATEGORICAL = ["direction", "sweep_kind", "entry_type", "bias_source", "session", "target_kind"]
 BOOLEAN = ["bias_aligned", "w1_aligned", "target_is_bias_dol", "strong_body", "h4_crt", "inducement",
-           "premium_discount", "midnight_open", "judas"]
+           "premium_discount", "midnight_open", "judas", "smt"]
 NUMERIC = ["hour_ny", "sweep_depth_pips", "mss_bars", "sl_pips", "liq_rr", "weekday_n"]
 
 

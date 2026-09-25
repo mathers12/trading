@@ -62,6 +62,10 @@ class _Side:
         self.tg_avail = tg["available_ns"].to_numpy()
         self.tg_exp = tg["expires_ns"].to_numpy()
         self.tg_taken = tg["taken_idx"].to_numpy()
+        if "smt_low" in m:
+            self.G_L = m["smt_low"] if d == 1 else -m["smt_high"]
+        else:
+            self.G_L = None
 
 
 def _ext_liquidity_bias(ctx: Context, i: int, price: float) -> int:
@@ -153,6 +157,21 @@ def _vp_confluence(ctx: Context, t: int, extreme: float) -> str:
         if (naked & (np.abs(vp["poc"][ks] - extreme) <= tol)).any():
             tags.append("nPOC")
     return ",".join(dict.fromkeys(tags))
+
+
+def _smt(ctx: Context, sd: "_Side", ext_idx: int, i: int) -> bool:
+    """ICT SMT divergencia: hlavný pár spravil nové low (pri shorte high), korelovaný pár nie."""
+    if sd.G_L is None:
+        return False
+    lb = ctx.cfg.get("smt", {}).get("lookback_bars", 24) * _bar_scale(ctx.cfg)
+    a, b = max(ext_idx - lb, 0), ext_idx - 2
+    if b <= a:
+        return False
+    ref_main, ref_other = sd.L[a:b].min(), np.nanmin(sd.G_L[a:b]) if np.isfinite(sd.G_L[a:b]).any() else np.nan
+    near = sd.G_L[max(ext_idx - 2, 0):min(ext_idx + 3, i + 1)]
+    if np.isnan(ref_other) or not np.isfinite(near).any():
+        return False
+    return bool(sd.L[ext_idx] < ref_main and np.nanmin(near) > ref_other)
 
 
 def _session(ctx: Context, minute: int) -> str:
@@ -389,6 +408,7 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "liq_rr": round(float(rr_all[max(pick, 0)]), 2),
         "midnight_open": bool(not np.isnan(m["midnight_open"][i]) and (
             entry < m["midnight_open"][i] if d == 1 else entry > m["midnight_open"][i])),
+        "smt": _smt(ctx, sd, ext_idx, i),
         "judas": bool(primary.startswith("ASIA") and in_window(int(m["ny_min"][i]), ctx.sessions["london"])),
     }
     return setup, ""
@@ -415,7 +435,7 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
         return f"proti biasu ({s['bias']})"
     for key, name in (("require_htf_poi", "htf_poi"), ("require_h4_crt", "h4_crt"), ("require_inducement", "inducement"),
                       ("require_vp", "vp"), ("require_premium_discount", "premium_discount"),
-                      ("require_midnight_open", "midnight_open")):
+                      ("require_midnight_open", "midnight_open"), ("require_smt", "smt")):
         if fl.get(key) and not s[name]:
             return f"chýba {name}"
     return ""

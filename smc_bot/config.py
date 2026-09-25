@@ -64,6 +64,7 @@ DEFAULTS: dict = {
         "require_premium_discount": False,
         "require_killzone": False,
         "require_midnight_open": False,
+        "require_smt": False,
     },
     "risk": {
         "risk_per_trade_pct": 1.0,
@@ -73,6 +74,7 @@ DEFAULTS: dict = {
         "eod_exit_ny": "16:00",
         "eod_exit_local": "19:00",
     },
+    "smt": {"instrument": "GBP_USD", "lookback_bars": 24},
     "live": {"lookback_days": 25, "alert_max_age_minutes": 60},
 }
 
