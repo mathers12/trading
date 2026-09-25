@@ -120,5 +120,7 @@ def test_local_trading_window_and_exit():
     for s in res["setups"]:
         lt = s["signal_time"].tz_convert("Europe/Bratislava")
         assert 8 * 60 <= lt.hour * 60 + lt.minute < 19 * 60
+        eod = pd.Timestamp(s["eod_ns"], tz="UTC").tz_convert("Europe/Bratislava")
+        assert (eod.hour, eod.minute) == (19, 0)
         if s.get("exit_ns"):
-            assert pd.Timestamp(s["exit_ns"], tz="UTC").tz_convert("Europe/Bratislava").hour < 19 or s["result"] == "EOD"
+            assert s["exit_ns"] <= s["eod_ns"] + 60 * 10**9  # najneskôr o 19:00 (+ posledná M1 sviečka)
