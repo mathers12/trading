@@ -49,6 +49,26 @@ def _structure(h, l, c, n):
     return trend, lo_a, hi_a, lo_i, hi_i, bos_a
 
 
+def tf_direction(df: pd.DataFrame, n: int) -> np.ndarray:
+    """Smer štruktúry po uzavretí každej sviečky: smer posledného BOS (+1 bull, -1 bear, 0 zatiaľ žiadny)."""
+    h, l, c = df["high"].to_numpy(), df["low"].to_numpy(), df["close"].to_numpy()
+    bull = _structure(h, l, c, n)[5]
+    bear = _structure(-l, -h, -c, n)[5]
+    return np.where((bull < 0) & (bear < 0), 0, np.where(bull > bear, 1, -1)).astype(np.int8)
+
+
+def aligned(ctx, t5: np.ndarray, d: int) -> np.ndarray:
+    """Top-down: smer d súhlasí so štruktúrou všetkých TF z htf.align (napr. W1, D1, H4) – posledné uzavreté sviečky."""
+    ok = np.ones(len(t5), dtype=bool)
+    n = int(ctx.cfg["htf"]["swing_strength"])
+    for tf in ctx.cfg["htf"].get("align") or []:
+        df = ctx.frames[tf]
+        dirs = tf_direction(df, n)
+        k = np.searchsorted(to_ns(df["close_time"]), t5, "right") - 1
+        ok &= (k >= 0) & (dirs[np.maximum(k, 0)] == d)
+    return ok
+
+
 def events(ctx, d: int) -> list[tuple]:
     """Udalosti pre smer d: (m5_idx, cena_dotyku, far=lo, tp=hi, kind, idm) v reálnych cenách."""
     cfg = ctx.cfg
@@ -90,6 +110,7 @@ def events(ctx, d: int) -> list[tuple]:
     m = ctx.m5
     t5 = m["close_ns"]
     kidx = np.searchsorted(h_close, t5, "right") - 1  # posledná uzavretá HTF sviečka
+    kidx = np.where(aligned(ctx, t5, d), kidx, -1)  # top-down filter (W1 -> D1 -> H4)
     nsw = cfg["structure"]["swing_strength_m5"]
     ltf_sl = np.flatnonzero(swing_lows(L, nsw))
     f_min, f_max = hc["fib_min"], hc["fib_max"]
