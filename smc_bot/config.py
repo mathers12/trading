@@ -8,6 +8,7 @@ import yaml
 
 DEFAULTS: dict = {
     "instrument": "EUR_USD",
+    "instruments": ["EUR_USD", "GBP_USD"],
     "pip": 0.0001,
     "local_timezone": "Europe/Bratislava",
     "data": {"source": "dukascopy", "start": "2024-01-01", "end": None, "cache_dir": "data", "assumed_spread_pips": 0.8},
@@ -103,3 +104,15 @@ def load_config(path: str | Path | None = "config.yaml", overrides: list[str] | 
     if path and Path(path).exists():
         user = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
     return apply_overrides(deep_merge(DEFAULTS, user), overrides)
+
+
+def pip_size(instrument: str) -> float:
+    return 0.01 if "JPY" in instrument.upper() else 0.0001
+
+
+def for_instrument(cfg: dict, instrument: str) -> dict:
+    """Kópia nastavení pre konkrétny trh (pip sa odvodí z názvu)."""
+    out = copy.deepcopy(cfg)
+    out["instrument"] = instrument
+    out["pip"] = pip_size(instrument)
+    return out
