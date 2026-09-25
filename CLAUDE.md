@@ -116,7 +116,8 @@ python -m smc_bot backtest --set filters.require_vp=true --set target.mode=fixed
   Reporty sú v artefaktoch behu.
 - Secrets: `TWELVEDATA_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Tokeny nikdy do kódu ani do chatu.
 - Sandbox Claude session: `datafeed.dukascopy.com` je povolený, ale s limitom požiadaviek. Blob storage GitHub artefaktov nie je dostupný,
-  výsledky behov čítaj cez logy jobov (GitHub MCP `get_job_logs`).
+  výsledky behov čítaj cez logy jobov (GitHub MCP `get_job_logs`). `myfxbook.com` a `statoasis.com` sú v sandboxe blokované (sieťová politika prostredia);
+  WebSearch funguje. Verejné štúdie (StatOasis, 2026): mechanické ICT/SMC vstupy bez štatisticky významnej výhody, najlepšie OB s displacementom + FVG.
 
 ## Štruktúra
 `data.py` / `dukascopy.py` (zdroje) → `timeframes.py` (resampling) → `structure.py` (swingy, FVG, OB) → `context.py` (likvidita, POI, bias, VP,
