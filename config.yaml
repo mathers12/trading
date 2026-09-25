@@ -32,12 +32,13 @@ bias:
 
 liquidity:
   # čo sa počíta ako vybratie likvidity (bez neho nie je setup)
-  external: [pwh_pwl, pdh_pdl, asia, h1_swings, m15_swings]
+  external: [pwh_pwl, pdh_pdl, asia, london, h1_swings, m15_swings]
   internal_fvg_timeframes: [H1]   # dotyk H1 FVG = vybratie internej likvidity
   swing_strength: 2               # swing = najvyšší/najnižší z 2 sviečok na každej strane
   max_age_days: 5
 
 structure:
+  timeframe: M5                   # timeframe pre sweep, MSS a vstup (M5 alebo M1)
   swing_strength_m5: 2
   atr_period: 14
   fvg_min_atr: 0.1                # minimálna veľkosť FVG (násobok ATR)
@@ -74,7 +75,7 @@ target:
   # first_min_rr = najbližšia opačná likvidita, ktorá dáva aspoň min_rr
   # nearest      = iba najbližšia likvidita; ak nedáva min_rr, setup sa zahodí
   mode: first_min_rr
-  kinds: [pdh_pdl, pwh_pwl, asia, h1_swings, m15_swings]
+  kinds: [pdh_pdl, pwh_pwl, asia, london, h1_swings, m15_swings]
 
 filters:                          # true = setup musí mať túto konfluenciu
   signal_windows_local: ["08:00-19:00"]   # obchodný čas v tvojom čase

@@ -16,7 +16,13 @@ from .context import DAY_NS, Context, in_window, parse_window
 from .structure import find_fvgs, swing_highs, swing_lows
 from .timeframes import NY
 
-PRIORITY = ["PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "H4_FVG", "H1_SH", "H1_SL", "H1_FVG", "M15_SH", "M15_SL", "M15_FVG"]
+PRIORITY = ["PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "LON_H", "LON_L", "H4_FVG", "H1_SH", "H1_SL", "H1_FVG", "M15_SH", "M15_SL", "M15_FVG"]
+
+
+def _bar_scale(cfg: dict) -> int:
+    """Počty sviečok v configu sú v M5; pri menšom timeframe sa násobia (M1 -> ×5)."""
+    tf = cfg["structure"].get("timeframe", "M5")
+    return max(1, 5 // int(tf[1:])) if tf.startswith("M") else 1
 
 
 def _prio(kind: str) -> int:
@@ -167,6 +173,7 @@ def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False
     cfg, pip, m = ctx.cfg, ctx.pip, ctx.m5
     st_cfg, en_cfg, tg_cfg, fl_cfg, rk_cfg = cfg["structure"], cfg["entry"], cfg["target"], cfg["filters"], cfg["risk"]
     nsw = st_cfg["swing_strength_m5"]
+    scale = _bar_scale(cfg)
     windows = [parse_window(w) for w in fl_cfg["signal_windows_ny"]]
     killzones = [w for k, w in ctx.sessions.items() if k != "asia"]
     sides = {d: _Side(ctx, d) for d in (1, -1)}
@@ -193,13 +200,13 @@ def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False
                 continue
             if sd.L[i] < st["ext"]:
                 st["ext"], st["ext_idx"] = sd.L[i], i
-            if i - st["ext_idx"] > st_cfg["mss_max_bars"]:
+            if i - st["ext_idx"] > st_cfg["mss_max_bars"] * scale:
                 state[d] = None
                 continue
             pos = bisect_left(sd.sh, st["ext_idx"]) - 1
             while pos >= 0 and sd.sh[pos] + nsw > i:
                 pos -= 1
-            if pos < 0 or sd.sh[pos] < st["ext_idx"] - st_cfg["mss_ref_lookback"]:
+            if pos < 0 or sd.sh[pos] < st["ext_idx"] - st_cfg["mss_ref_lookback"] * scale:
                 continue
             ref = sd.sh[pos]
             if sd.C[i] <= sd.H[ref]:
@@ -321,7 +328,7 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
     lv = ctx.levels.loc[st["levels"]]
     primary = min(lv["kind"], key=_prio)
     sweep_price = float(lv.loc[lv["kind"] == primary, "price"].iloc[0])
-    lb = cfg["inducement"]["lookback_bars"]
+    lb = cfg["inducement"]["lookback_bars"] * _bar_scale(cfg)
     ev = st["event_idx"]
     level_d = d * sweep_price
     idm = False
@@ -355,7 +362,7 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "target_kind": sd.tg_kind[tk],
         "rr": round(rr, 2),
         "sl_pips": round(sl_pips, 1),
-        "expiry_ns": t + cfg["entry"]["expiry_bars"] * 5 * 60 * 10**9,
+        "expiry_ns": t + int(cfg["entry"].get("expiry_minutes") or cfg["entry"]["expiry_bars"] * 5) * 60 * 10**9,
         "eod_ns": (_eod_ns(tday, cfg["risk"]["eod_exit_local"], cfg["local_timezone"]) if cfg["risk"].get("eod_exit_local")
                    else _eod_ns(tday, cfg["risk"]["eod_exit_ny"])),
         "session": _session(ctx, int(m["ny_min"][i])),

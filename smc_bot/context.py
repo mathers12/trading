@@ -79,7 +79,8 @@ def _zones_for_tf(df: pd.DataFrame, tf: str, cfg: dict) -> pd.DataFrame:
 
 def build_context(m1: pd.DataFrame, cfg: dict) -> Context:
     pip = float(cfg["pip"])
-    frames = {tf: resample(m1, tf) for tf in ("M5", "M15", "H1", "H4", "D1", "W1")}
+    base_tf = cfg["structure"].get("timeframe", "M5")  # timeframe pre sweep/MSS/vstup
+    frames = {tf: resample(m1, tf) for tf in dict.fromkeys((base_tf, "M5", "M15", "H1", "H4", "D1", "W1"))}
     ctx = Context(cfg=cfg, pip=pip, m1=m1, frames=frames)
     ctx.sessions = {k: parse_window(v) for k, v in cfg["sessions"].items()}
 
@@ -90,7 +91,7 @@ def build_context(m1: pd.DataFrame, cfg: dict) -> Context:
             ctx.m1a[f"{side}_{k}"] = m1[f"{side}_{k}"].to_numpy()
 
     # --- M5 (hlavný timeframe setupu)
-    m5 = frames["M5"]
+    m5 = frames[base_tf]
     h, l, o, c = (m5[k].to_numpy() for k in ("high", "low", "open", "close"))
     close_ns = to_ns(m5["close_time"])
     tday = trading_day(m5.index)
@@ -163,17 +164,20 @@ def _build_levels(ctx: Context) -> pd.DataFrame:
         period_levels("D1", "pdh_pdl", "PDH", "PDL")
     if "pwh_pwl" in groups:
         period_levels("W1", "pwh_pwl", "PWH", "PWL")
-    if "asia" in groups:
+    # rozsahy seáns: Ázia (vyberá sa v Londýne) a Londýn (vyberá sa v New Yorku)
+    for group, session, kh, kl in (("asia", "asia", "ASIA_H", "ASIA_L"), ("london", "london", "LON_H", "LON_L")):
+        if group not in groups:
+            continue
         m5 = ctx.m5
-        win = ctx.sessions["asia"]
+        win = ctx.sessions[session]
         mask = np.array([in_window(int(x), win) for x in m5["ny_min"]])
         d1_close = dict(zip(f["D1"]["period"], to_ns(f["D1"]["close_time"])))
         df = pd.DataFrame({"tday": m5["tday"][mask], "h": m5["high"][mask], "l": m5["low"][mask], "cn": m5["close_ns"][mask]})
         for day, g in df.groupby("tday"):
             exp = d1_close.get(day, NEVER)
             avail = int(g["cn"].max())
-            rows.append((g["h"].max(), "high", "ASIA_H", "asia", avail, exp))
-            rows.append((g["l"].min(), "low", "ASIA_L", "asia", avail, exp))
+            rows.append((g["h"].max(), "high", kh, group, avail, exp))
+            rows.append((g["l"].min(), "low", kl, group, avail, exp))
     n = int(lq["swing_strength"])
     for tf, group in (("H1", "h1_swings"), ("M15", "m15_swings")):
         if group not in groups:

@@ -54,7 +54,18 @@ GRID_ICT2 = {
     "h4crt": GRID["h4crt"],
     "slbuf": {"3": ["entry.sl_buffer_pips=3"], "5": ["entry.sl_buffer_pips=5"]},
 }
-GRIDS = {"ict": GRID, "ict2": GRID_ICT2}
+# denný model: viac obchodov (cieľ >= 1 obchod denne na EUR/USD + GBP/USD)
+GRID_DAILY = {
+    "liq": {"všetka": ["filters.sweep_kinds=null"],
+            "HTF+LON": [f"filters.sweep_kinds={_j(HTF_LIQ + ['LON_H', 'LON_L'])}"]},
+    "okno": {"08-19": [f"filters.signal_windows_local={_j(WINDOWS['08-19'])}"],
+             "LO+NY": [f"filters.signal_windows_local={_j(WINDOWS['LO+NY'])}"]},
+    "vstup": {"FVG": ["entry.type=fvg_or_ob", "entry.price=proximal"], "OTE": ["entry.type=ote"]},
+    "tp": {"2R": ["target.mode=fixed_rr"], "likv≤3R": ["target.mode=first_min_rr", "target.max_rr=3"]},
+    "h4crt": GRID["h4crt"],
+    "bias": {"D1+": ["bias.filter=true"], "-": ["bias.filter=false"]},
+}
+GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY}
 
 _CTX = None
 _BASE = None

@@ -21,12 +21,13 @@ DEFAULTS: dict = {
     },
     "bias": {"filter": True, "fallback": ["w1", "liquidity"]},
     "liquidity": {
-        "external": ["pwh_pwl", "pdh_pdl", "asia", "h1_swings", "m15_swings"],
+        "external": ["pwh_pwl", "pdh_pdl", "asia", "london", "h1_swings", "m15_swings"],
         "internal_fvg_timeframes": ["H1"],
         "swing_strength": 2,
         "max_age_days": 5,
     },
     "structure": {
+        "timeframe": "M5",
         "swing_strength_m5": 2,
         "atr_period": 14,
         "fvg_min_atr": 0.1,
@@ -50,7 +51,7 @@ DEFAULTS: dict = {
         "min_rr": 2.0,
         "mode": "first_min_rr",
         "max_rr": None,
-        "kinds": ["pdh_pdl", "pwh_pwl", "asia", "h1_swings", "m15_swings"],
+        "kinds": ["pdh_pdl", "pwh_pwl", "asia", "london", "h1_swings", "m15_swings"],
     },
     "filters": {
         "signal_windows_ny": [],
