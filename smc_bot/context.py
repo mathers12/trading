@@ -134,6 +134,12 @@ def build_context(m1: pd.DataFrame, cfg: dict, smt_m1: pd.DataFrame | None = Non
         "day_low": pd.Series(l).groupby(tday.to_numpy()).cummin().to_numpy(),
     }
 
+    # --- ATR z M15 (poslednej uzavretej) pre minimálnu veľkosť SL podľa volatility
+    f15 = frames["M15"]
+    a15 = atr(f15["high"].to_numpy(), f15["low"].to_numpy(), f15["close"].to_numpy(), cfg["structure"]["atr_period"])
+    k15 = np.searchsorted(to_ns(f15["close_time"]), close_ns, "right") - 1
+    ctx.m5["atr_m15"] = np.where(k15 >= 0, a15[np.maximum(k15, 0)], np.nan)
+
     # --- ICT midnight open: otvárajúca cena o 00:00 NY (platí 00:00–17:00 NY toho dňa)
     ny_date = m5.index.tz_convert("America/New_York").normalize().tz_localize(None)
     first_open = pd.Series(o).groupby(ny_date.to_numpy()).transform("first").to_numpy()

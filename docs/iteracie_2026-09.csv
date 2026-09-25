@@ -1,0 +1,13 @@
+kolo,mesiace,zmeny,n,win%,PF,R,za_deň
+kolo 1: kandidát,"2025-03,2025-07,2025-08",smt.instrument=null,42,47.6,1.77,15.9,0.67
+kolo 2: killzones 08-11+14-17,"2025-03,2025-07,2025-08","smt.instrument=null;filters.signal_windows_local=[""08:00-11:00"",""14:00-17:00""]",29,44.8,1.54,8.7,0.46
+kolo 3: midnight open,"2025-03,2025-07,2025-08",smt.instrument=null;filters.require_midnight_open=true,18,55.6,2.62,12.2,0.29
+kolo 4: MO + M5 pullbacky,"2025-03,2025-07,2025-08","smt.instrument=null;filters.require_midnight_open=true;htf.timeframe=[""H1"",""M15"",""M5""]",17,52.9,2.41,10.6,0.27
+kolo 5: MO na GBP/USD,"2025-03,2025-07,2025-08",smt.instrument=null;instrument=GBP_USD;filters.require_midnight_open=true,12,33.3,1.0,-0.0,0.19
+kolo 6: MO + voľná cesta k 2R,"2025-03,2025-07,2025-08",smt.instrument=null;filters.require_midnight_open=true;target.mode=fixed_rr_clear,7,71.4,6.34,8.2,0.11
+kolo 7: voľná cesta k 2R,"2025-03,2025-07,2025-08",smt.instrument=null;target.mode=fixed_rr_clear,21,57.1,2.4,11.9,0.33
+kolo 8: C + bez extrémnej sviečky,"2025-03,2025-07,2025-08",smt.instrument=null;target.mode=fixed_rr_clear;filters.avoid_strong_body=true,17,70.6,4.08,15.4,0.27
+overenie kola 7,"2024-10,2025-01,2025-05,2026-02",smt.instrument=null;target.mode=fixed_rr_clear,43,30.2,0.81,-5.5,0.51
+overenie kola 8,"2024-10,2025-01,2025-05,2026-02",smt.instrument=null;target.mode=fixed_rr_clear;filters.avoid_strong_body=true,36,30.6,0.82,-4.1,0.43
+kolo 9: C + bez extrém. sviečky + SL ≥ 1×ATR(M15),"2025-03,2025-07,2025-08",smt.instrument=null;target.mode=fixed_rr_clear;filters.avoid_strong_body=true;entry.min_sl_atr_m15=1.0,16,62.5,4.93,12.9,0.25
+kolo 10: overenie kola 9 (nevidené mesiace),"2024-10,2025-01,2025-05,2026-02",smt.instrument=null;target.mode=fixed_rr_clear;filters.avoid_strong_body=true;entry.min_sl_atr_m15=1.0,34,23.5,0.53,-10.9,0.4

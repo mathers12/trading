@@ -87,6 +87,11 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
 - **Fixingy / intraday sezónnosť** (Krohn a kol., JF 2024: USD posilňuje pred fixingami): na 03+05+07+08/2025 hodina 13:15–14:15 (pred ECB fixom 14:15)
   EUR/USD −4 p, t = −3,4; short 13:15→14:15 PF 2,29, 61 %, 1/deň. **Overenie 10/2024, 01/2025, 02/2026: +56 / −41 / −7 p, PF ~1,05 → neobstálo.**
   WM/Reuters 17:00 fix a intraday momentum (ráno → poobede) bez stabilného efektu.
+- **10 kôl učenia (`python -m smc_bot.iterate`, tréning 03+07+08/2025, overenie 10/2024+01/2025+05/2025+02/2026; tabuľka `docs/iteracie_2026-09.csv`):**
+  tréning sa zlepšil z PF 1,77 (kolo 1) na 4–5 (midnight open, voľná cesta k 2R `target.mode=fixed_rr_clear`,
+  bez extrémnej MSS sviečky `filters.avoid_strong_body`, SL ≥ 1×ATR(M15) `entry.min_sl_atr_m15`), ale **na nevidených mesiacoch PF 0,53–0,82 → preučenie**.
+  Úspešnosť v overení 23–31 %. GBP/USD s rovnakou logikou PF 1,0. Poučenie: filtre vybrané podľa tréningových mesiacov neprenášajú výhodu;
+  tréningové obdobie (3 mesiace, ~20–40 obchodov) je na výber filtrov príliš malé.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)

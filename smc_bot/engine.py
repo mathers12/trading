@@ -336,6 +336,8 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
     if "far_d" in st and cfg["poi"]["sl"] == "zone":
         ext = min(ext, st["far_d"])  # SL za POI zónou
     sl_d = ext - en["sl_buffer_pips"] * pip
+    if en.get("min_sl_atr_m15") and not np.isnan(m["atr_m15"][i]):
+        sl_d = min(sl_d, entry_d - en["min_sl_atr_m15"] * m["atr_m15"][i])  # SL aspoň k × ATR(M15), mimo šumu
     risk_d = entry_d - sl_d
     sl_pips = risk_d / pip
     if sl_pips < en["min_sl_pips"]:
