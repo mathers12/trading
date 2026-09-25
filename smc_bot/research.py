@@ -128,7 +128,8 @@ GRID_VA = {  # 4. návrat do value area predchádzajúceho dňa (pravidlo 80 %)
            "2R": ["session_strategy.tp=rr", "session_strategy.rr=2"]},
     "min_rr": _SS("min_rr", [1.0, 1.5]),
 }
-GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY, "freq": GRID_FREQ, "market": GRID_MARKET, "poi": GRID_POI, "asia_bo": GRID_ASIA_BO, "asia_fo": GRID_ASIA_FO, "va": GRID_VA}\nGRID_BASE = {"poi": POI_BASE, "asia_bo": ["strategy=asia_breakout"], "asia_fo": ["strategy=asia_fakeout"],
+GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY, "freq": GRID_FREQ, "market": GRID_MARKET, "poi": GRID_POI, "asia_bo": GRID_ASIA_BO, "asia_fo": GRID_ASIA_FO, "va": GRID_VA}
+GRID_BASE = {"poi": POI_BASE, "asia_bo": ["strategy=asia_breakout"], "asia_fo": ["strategy=asia_fakeout"],
              "va": ["strategy=value_revert"]}  # prepínače, ktoré treba už pri stavbe kontextu
 
 _CTX = None
