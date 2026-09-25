@@ -88,12 +88,54 @@ GRID_MARKET = {
     "tp": GRID_DAILY["tp"],
     "MO": GRID["MO"],
 }
-GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY, "freq": GRID_FREQ, "market": GRID_MARKET}
+# POI / supply-demand zóny (OB s displacementom, FVG a BOS na H4/H1/M15, iba prvý dotyk) -> M5 MSS
+POI_BASE = ['liquidity.external=["poi_zone"]', "liquidity.internal_fvg_timeframes=[]"]
+GRID_POI = {
+    "zona": {"všetky": ["filters.sweep_kinds=null"], "H4": ['filters.sweep_kinds=["H4_OB"]'],
+             "H1": ['filters.sweep_kinds=["H1_OB"]'], "M15": ['filters.sweep_kinds=["M15_OB"]']},
+    "vstup": {"FVG": ["entry.type=fvg_or_ob"], "trh": ["entry.type=market"]},
+    "sl": {"extrém": ["poi.sl=extreme"], "zóna": ["poi.sl=zone"]},
+    "tp": {"2R": ["target.mode=fixed_rr"], "likv≤3R": ["target.mode=first_min_rr", "target.max_rr=3"]},
+    "bias": {"D1+": ["bias.filter=true"], "-": ["bias.filter=false"]},
+    "sweep": {"-": ["filters.require_poi_sweep=false"], "áno": ["filters.require_poi_sweep=true"]},
+    "idm": {"-": ["filters.require_inducement=false"], "áno": ["filters.require_inducement=true"]},
+}
+_LW = lambda *w: [f"session_strategy.windows_local={_j(list(w))}"]  # noqa: E731
+_SS = lambda k, vals: {str(v): [f"session_strategy.{k}={_j(v)}"] for v in vals}  # noqa: E731
+GRID_ASIA_BO = {  # 2. Londýnsky breakout ázijského rozsahu
+    "okno": {"08-11": _LW("08:00-11:00"), "08-13": _LW("08:00-13:00")},
+    "smer": _SS("direction", ["none", "d1", "h4"]),
+    "vstup": _SS("entry", ["market", "limit"]),
+    "sl": _SS("sl", ["mid", "opposite"]),
+    "rr": _SS("rr", [1.5, 2.0, 3.0]),
+    "max_rng": _SS("max_range_pips", [25, 40]),
+}
+GRID_ASIA_FO = {  # 3. Judas / turtle soup: falošné prerazenie Ázie v Londýne
+    "okno": {"08-11": _LW("08:00-11:00"), "08-13": _LW("08:00-13:00")},
+    "smer": _SS("direction", ["none", "d1"]),
+    "vstup": _SS("entry", ["market", "limit"]),
+    "tp": {"opačná": ["session_strategy.tp=opposite"], "stred": ["session_strategy.tp=mid"],
+           "2R": ["session_strategy.tp=rr", "session_strategy.rr=2"]},
+    "sweep": _SS("sweep_pips", [1, 3]),
+    "slbuf": _SS("sl_buffer_pips", [1, 3]),
+    "min_rr": _SS("min_rr", [1.0, 2.0]),
+}
+GRID_VA = {  # 4. návrat do value area predchádzajúceho dňa (pravidlo 80 %)
+    "okno": {"08-19": _LW("08:00-19:00"), "08-13": _LW("08:00-13:00"), "14-19": _LW("14:00-19:00")},
+    "smer": _SS("direction", ["none", "d1_not"]),
+    "potvrd": _SS("confirm_bars", [3, 6, 12]),
+    "tp": {"opačná": ["session_strategy.tp=opposite"], "POC": ["session_strategy.tp=poc"],
+           "2R": ["session_strategy.tp=rr", "session_strategy.rr=2"]},
+    "min_rr": _SS("min_rr", [1.0, 1.5]),
+}
+GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY, "freq": GRID_FREQ, "market": GRID_MARKET, "poi": GRID_POI, "asia_bo": GRID_ASIA_BO, "asia_fo": GRID_ASIA_FO, "va": GRID_VA}\nGRID_BASE = {"poi": POI_BASE, "asia_bo": ["strategy=asia_breakout"], "asia_fo": ["strategy=asia_fakeout"],
+             "va": ["strategy=value_revert"]}  # prepínače, ktoré treba už pri stavbe kontextu
 
 _CTX = None
 _BASE = None
 _SPLIT = None
 _GRID = None
+_VERIFY = None
 
 
 def overrides(combo: dict, grid: dict) -> list[str]:
@@ -126,13 +168,23 @@ def _evaluate(combo: dict) -> dict:
     r = np.array([x[1] for x in rows], dtype=float)
     is_m = metrics(r[t < _SPLIT])
     oos_m = metrics(r[t >= _SPLIT])
-    return {**combo, **{f"IS_{k}": v for k, v in is_m.items()}, **{f"OOS_{k}": v for k, v in oos_m.items()}}
+    row = {**combo, **{f"IS_{k}": v for k, v in is_m.items()}, **{f"OOS_{k}": v for k, v in oos_m.items()}}
+    if _VERIFY:  # overovacie obdobie (napr. 2025-07+), podmnožina OOS
+        row.update({f"VER_{k}": v for k, v in metrics(r[t >= _VERIFY]).items()})
+    days = {"IS": (t < _SPLIT), "OOS": (t >= _SPLIT)}
+    for name, mask in days.items():  # obchody na obchodný deň (~ pracovné dni v období)
+        if mask.any():
+            span = (t[mask].max() - t[mask].min()) / 86_400e9 * 5 / 7
+            row[f"{name}_perday"] = round(mask.sum() / max(span, 1), 2)
+    return row
 
 
-def run_grid(ctx, cfg: dict, split: str, grid: dict | None = None, workers: int | None = None) -> pd.DataFrame:
-    global _CTX, _BASE, _SPLIT, _GRID
+def run_grid(ctx, cfg: dict, split: str, grid: dict | None = None, workers: int | None = None,
+             verify: str | None = None) -> pd.DataFrame:
+    global _CTX, _BASE, _SPLIT, _GRID, _VERIFY
     _CTX, _BASE = ctx, cfg
     _SPLIT = pd.Timestamp(split, tz="UTC").value
+    _VERIFY = pd.Timestamp(verify, tz="UTC").value if verify else None
     grid = _GRID = grid or GRID
     combos = [dict(zip(grid, vals)) for vals in itertools.product(*grid.values())]
     workers = workers or os.cpu_count() or 1

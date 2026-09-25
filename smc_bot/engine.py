@@ -16,7 +16,7 @@ from .context import DAY_NS, Context, in_window, parse_window
 from .structure import find_fvgs, swing_highs, swing_lows
 from .timeframes import NY
 
-PRIORITY = ["PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "LON_H", "LON_L", "H4_FVG", "H1_SH", "H1_SL", "H1_FVG", "M15_SH", "M15_SL", "M15_FVG"]
+PRIORITY = ["H4_OB", "H1_OB", "M15_OB", "PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "LON_H", "LON_L", "H4_FVG", "H1_SH", "H1_SL", "H1_FVG", "M15_SH", "M15_SL", "M15_FVG"]
 
 
 def _bar_scale(cfg: dict) -> int:
@@ -54,6 +54,8 @@ class _Side:
         self.events: dict[int, list[int]] = {}
         for lid, idx in zip(ev.index, ev["taken_idx"]):
             self.events.setdefault(int(idx), []).append(int(lid))
+        lq = lv[(lv["side"] == sweep_side) & (lv["taken_idx"] >= 0) & ~lv["group"].isin(["poi_zone", "internal_fvg"])]
+        self.liq_taken = np.sort(lq["taken_idx"].to_numpy())  # na tag „sweep v POI zóne“
         target_side = "high" if d == 1 else "low"
         tg = lv[(lv["side"] == target_side) & lv["group"].isin(ctx.cfg["target"]["kinds"])]
         self.tg_price_d = d * tg["price"].to_numpy()
@@ -190,6 +192,10 @@ def _eod_ns(tday: pd.Timestamp, eod_text: str, tz: str = NY) -> int:
 def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False) -> dict:
     """Prejde všetky M5 sviečky a vráti setupy, zamietnuté setupy a (live) upozornenia."""
     cfg, pip, m = ctx.cfg, ctx.pip, ctx.m5
+    if cfg.get("strategy", "smc") != "smc":
+        from . import strategies
+
+        return strategies.run(ctx)
     st_cfg, en_cfg, tg_cfg, fl_cfg, rk_cfg = cfg["structure"], cfg["entry"], cfg["target"], cfg["filters"], cfg["risk"]
     nsw = st_cfg["swing_strength_m5"]
     scale = _bar_scale(cfg)
@@ -211,6 +217,9 @@ def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False
                 if st is None:
                     lv = ctx.levels.loc[evs]
                     st = state[d] = {"event_idx": i, "ext_idx": i, "ext": sd.L[i], "levels": list(evs)}
+                    far = lv["far"].dropna()
+                    if len(far):  # POI zóna: vzdialená hrana (zrkadlená)
+                        st["far_d"] = float((d * far).min())
                     if collect_alerts:
                         alerts.append(_armed_alert(ctx, i, d, lv))
                 else:
@@ -219,6 +228,9 @@ def run(ctx: Context, simulate_trades: bool = True, collect_alerts: bool = False
                 continue
             if sd.L[i] < st["ext"]:
                 st["ext"], st["ext_idx"] = sd.L[i], i
+            if "far_d" in st and cfg["poi"]["cancel_on_close_beyond"] and sd.C[i] < st["far_d"]:
+                state[d] = None  # cena uzavrela za POI zónou -> zóna neplatí
+                continue
             if i - st["ext_idx"] > st_cfg["mss_max_bars"] * scale:
                 state[d] = None
                 continue
@@ -312,6 +324,8 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
     if entry_d is None:
         return None, "žiadny FVG/OB na vstup"
 
+    if "far_d" in st and cfg["poi"]["sl"] == "zone":
+        ext = min(ext, st["far_d"])  # SL za POI zónou
     sl_d = ext - en["sl_buffer_pips"] * pip
     risk_d = entry_d - sl_d
     sl_pips = risk_d / pip
@@ -409,6 +423,7 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "midnight_open": bool(not np.isnan(m["midnight_open"][i]) and (
             entry < m["midnight_open"][i] if d == 1 else entry > m["midnight_open"][i])),
         "smt": _smt(ctx, sd, ext_idx, i),
+        "poi_sweep": bool(np.searchsorted(sd.liq_taken, i, "right") > np.searchsorted(sd.liq_taken, ev, "left")),
         "judas": bool(primary.startswith("ASIA") and in_window(int(m["ny_min"][i]), ctx.sessions["london"])),
     }
     return setup, ""
@@ -435,7 +450,8 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
         return f"proti biasu ({s['bias']})"
     for key, name in (("require_htf_poi", "htf_poi"), ("require_h4_crt", "h4_crt"), ("require_inducement", "inducement"),
                       ("require_vp", "vp"), ("require_premium_discount", "premium_discount"),
-                      ("require_midnight_open", "midnight_open"), ("require_smt", "smt")):
+                      ("require_midnight_open", "midnight_open"), ("require_smt", "smt"),
+                      ("require_poi_sweep", "poi_sweep")):
         if fl.get(key) and not s[name]:
             return f"chýba {name}"
     return ""

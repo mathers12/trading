@@ -7,6 +7,12 @@ from pathlib import Path
 import yaml
 
 DEFAULTS: dict = {
+    "strategy": "smc",  # smc | asia_breakout | asia_fakeout | value_revert (smc_bot/strategies.py)
+    "session_strategy": {
+        "windows_local": ["08:00-11:00"], "direction": "none", "entry": "market", "rr": 2.0, "min_rr": 1.0,
+        "min_range_pips": 5, "max_range_pips": 40, "break_pips": 0.0, "sweep_pips": 1.0, "sl": "mid", "sl_atr": 1.5,
+        "sl_buffer_pips": 2.0, "min_sl_pips": 3, "max_sl_pips": 30, "tp": "opposite", "confirm_bars": 6,
+    },
     "instrument": "EUR_USD",
     "instruments": ["EUR_USD", "GBP_USD"],
     "pip": 0.0001,
@@ -36,7 +42,10 @@ DEFAULTS: dict = {
         "mss_max_bars": 36,
         "mss_ref_lookback": 48,
     },
-    "poi": {"timeframes": ["H4", "H1", "M15"], "tolerance_pips": 2.0, "max_age_days": 10},
+    "poi": {"timeframes": ["H4", "H1", "M15"], "tolerance_pips": 2.0, "max_age_days": 10,
+            # POI stratégia (liquidity.external obsahuje poi_zone): OB zóny, iba prvý dotyk
+            "zone_timeframes": ["H4", "H1", "M15"], "zone_max_age_days": 10, "require_bos": True,
+            "sl": "extreme", "cancel_on_close_beyond": True},
     "volume_profile": {"bin_pips": 0.5, "value_area": 0.70, "tolerance_pips": 3.0, "npoc_lookback_days": 10},
     "inducement": {"lookback_bars": 24, "max_distance_pips": 10.0},
     "entry": {

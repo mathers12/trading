@@ -88,18 +88,19 @@ def test_short_uses_ask_for_exit():
     assert r["result"] == "SL"
 
 
-def test_no_lookahead():
+@pytest.mark.parametrize("extra", [[], ['liquidity.external=["poi_zone"]', "liquidity.internal_fvg_timeframes=[]", "poi.sl=zone"]])
+def test_no_lookahead(extra):
     """Setupy nájdené na skrátených dátach musia byť rovnaké ako na celých dátach."""
-    cfg = load_config(None, ["bias.filter=false", "filters.signal_windows_ny=[]"])
+    cfg = load_config(None, ["bias.filter=false", "filters.signal_windows_ny=[]"] + extra)
     m1 = make_sample("2024-01-01", days=45, seed=3)
     cut = m1.index[len(m1) * 2 // 3]
     full = engine.run(build_context(m1, cfg), simulate_trades=False)["setups"]
     part = engine.run(build_context(m1[m1.index < cut], cfg), simulate_trades=False)["setups"]
-    key = lambda s: (s["signal_ns"], s["direction"], s["entry"], s["sl"], s["tp"], s["h4_crt"], s["htf_poi"], s["bias"])  # noqa: E731
+    key = lambda s: (s["signal_ns"], s["direction"], s["entry"], s["sl"], s["tp"], s["h4_crt"], s["htf_poi"], s["bias"], s["poi_sweep"])  # noqa: E731
     horizon = cut.value - 6 * 3600 * 10**9  # ponecháme rezervu na potvrdenie swingov
     a = [key(s) for s in full if s["signal_ns"] < horizon]
     b = [key(s) for s in part if s["signal_ns"] < horizon]
-    assert len(a) > 5
+    assert len(a) > (5 if not extra else 2)
     assert a == b
 
 

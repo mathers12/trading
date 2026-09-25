@@ -65,3 +65,20 @@ def find_order_blocks(
                 rows.append((idx, side, low[k], high[k]))
                 break
     return pd.DataFrame(rows, columns=["idx", "side", "bottom", "top"])
+
+
+def breaks_structure(high: np.ndarray, close: np.ndarray, idx: int, n: int, lookback: int = 50) -> bool:
+    """Bull displacement končiaci sviečkou idx (FVG) prerazil štruktúru (BOS).
+
+    Posledný swing high potvrdený pred začiatkom pohybu (idx - 2) ešte nebol prerazený
+    a close v pohybe [idx-2, idx] je nad ním.
+    """
+    start = idx - 2
+    for j in range(start - n - 1, max(start - lookback, 0) - 1, -1):
+        if j < n:
+            break
+        if high[j] > high[j - n:j].max() and high[j] >= high[j + 1:j + n + 1].max():
+            if close[j + 1:start].max(initial=-np.inf) > high[j]:
+                return False  # swing už bol prerazený skôr
+            return close[start:idx + 1].max() > high[j]
+    return False

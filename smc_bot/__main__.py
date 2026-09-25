@@ -33,6 +33,7 @@ def _args():
     p.add_argument("--state", default="state/scan_state.json")
     p.add_argument("--grid", default="ict", help="research: ict | ict2")
     p.add_argument("--split", default="2025-07-01", help="research: začiatok out-of-sample obdobia")
+    p.add_argument("--verify", default=None, help="research: začiatok overovacieho obdobia (stĺpce VER_)")
     p.add_argument("--test-notify", action="store_true", help="scan: pošli na Telegram aj stavovú správu (test)")
     return p.parse_args()
 
@@ -140,9 +141,10 @@ def cmd_scan(cfg, a):
 def cmd_research(cfg, a):
     from . import research
 
+    cfg = apply_overrides(cfg, research.GRID_BASE.get(a.grid, []))
     m1 = _load(cfg, a)
     ctx = _ctx(cfg, a, m1)
-    df = research.run_grid(ctx, cfg, a.split, research.GRIDS[a.grid])
+    df = research.run_grid(ctx, cfg, a.split, research.GRIDS[a.grid], verify=a.verify)
     out = Path(a.out or f"reports/research_{pd.Timestamp.now():%Y%m%d_%H%M%S}")
     out.mkdir(parents=True, exist_ok=True)
     df.to_csv(out / "research.csv", index=False)
@@ -157,7 +159,7 @@ def cmd_research(cfg, a):
     print("\nNajrobustnejšie (najlepší horší z IS/OOS):")
     print(robust.to_string(index=False))
     md = [f"# Research {cfg['instrument']} – OOS od {a.split}\n", "## Top 30 podľa IS\n",
-          report._md_table(top.set_index("liq")), "\n## Najrobustnejšie\n", report._md_table(robust.set_index("liq"))]
+          report._md_table(top.set_index(top.columns[0])), "\n## Najrobustnejšie\n", report._md_table(robust.set_index(robust.columns[0]))]
     (out / "research.md").write_text("\n".join(md), encoding="utf-8")
     print(f"Report: {out}/research.md")
 

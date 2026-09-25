@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from . import bias as bias_mod
-from .structure import atr, find_fvgs, find_order_blocks, swing_highs, swing_lows
+from .structure import atr, breaks_structure, find_fvgs, find_order_blocks, swing_highs, swing_lows
 from .timeframes import FREQ, NEVER, ny_minutes, period_key, resample, to_ns, trading_day
 from .volume_profile import daily_profiles, naked_poc_touch_times
 
@@ -75,6 +75,31 @@ def _zones_for_tf(df: pd.DataFrame, tf: str, cfg: dict) -> pd.DataFrame:
             inval[k] = close_ns[idx + 1 + int(np.argmax(hit))]
     z["invalid_ns"] = inval
     return z
+
+
+def _poi_zones(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Supply/demand zóny: OB, z ktorého vznikol displacement s FVG (a voliteľne BOS)."""
+    h, l, o, c = (df[k].to_numpy() for k in ("high", "low", "open", "close"))
+    a = atr(h, l, c, cfg["structure"]["atr_period"])
+    fv = find_fvgs(h, l, cfg["structure"]["fvg_min_atr"] * a)
+    ob = find_order_blocks(o, h, l, c, fv)
+    if not len(ob):
+        return ob.assign(created_ns=[], invalid_ns=[])
+    if cfg["poi"]["require_bos"]:
+        n = int(cfg["liquidity"]["swing_strength"])
+        keep = [breaks_structure(h, c, i, n) if sd == "bull" else breaks_structure(-l, -c, i, n)
+                for i, sd in zip(ob["idx"], ob["side"])]
+        ob = ob[np.array(keep, dtype=bool)].reset_index(drop=True)
+    close_ns = to_ns(df["close_time"])
+    ob["created_ns"] = close_ns[ob["idx"].to_numpy()]
+    inval = np.full(len(ob), NEVER, dtype=np.int64)
+    for k, (idx, side, bot, top) in enumerate(zip(ob["idx"], ob["side"], ob["bottom"], ob["top"])):
+        seg = c[idx + 1:]
+        hit = seg < bot if side == "bull" else seg > top
+        if hit.any():
+            inval[k] = close_ns[idx + 1 + int(np.argmax(hit))]
+    ob["invalid_ns"] = inval
+    return ob
 
 
 def build_context(m1: pd.DataFrame, cfg: dict, smt_m1: pd.DataFrame | None = None) -> Context:
@@ -208,7 +233,19 @@ def _build_levels(ctx: Context) -> pd.DataFrame:
             else:
                 rows.append((top, "low", f"{tf}_FVG", "internal_fvg", cr, min(inv, cr + max_age)))
 
+    far: dict[int, float] = {}  # index riadku -> vzdialená hrana POI zóny (na SL a zrušenie)
+    if "poi_zone" in groups:
+        pc = cfg["poi"]
+        age = int(pc["zone_max_age_days"] * DAY_NS)
+        for tf in pc["zone_timeframes"]:
+            for z in _poi_zones(f[tf], cfg).itertuples():
+                far[len(rows)] = z.bottom if z.side == "bull" else z.top
+                # demand (bull OB) pod cenou -> prvý dotyk hornej hrany; supply zrkadlovo
+                rows.append((z.top if z.side == "bull" else z.bottom, "low" if z.side == "bull" else "high",
+                             f"{tf}_OB", "poi_zone", z.created_ns, min(z.invalid_ns, z.created_ns + age)))
+
     lv = pd.DataFrame(rows, columns=["price", "side", "kind", "group", "available_ns", "expires_ns"])
+    lv["far"] = pd.Series(far, dtype=float).reindex(lv.index).to_numpy()
     m5 = ctx.m5
     taken = np.empty(len(lv), dtype=np.int64)
     for k, (p, s, a, e) in enumerate(zip(lv["price"].to_numpy(), lv["side"].to_numpy(), lv["available_ns"].to_numpy(), lv["expires_ns"].to_numpy())):
