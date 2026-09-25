@@ -94,6 +94,7 @@ def events(ctx, d: int, tf_pb: str) -> list[tuple]:
         L, Hm = -ctx.m5["high"], -ctx.m5["low"]
     trend, lo, hi, lo_i, hi_i, bos = _structure(hh, hl, hcl, int(hc["swing_strength"]))
     h_close = to_ns(H["close_time"])
+    h_atr = atr(hh, hl, hcl, cfg["structure"]["atr_period"])  # sila impulzu v násobkoch ATR pullback TF
     h_open = to_ns(H.index)
 
     # POI: bull FVG na POI TF (zrkadlené; H1 aj M15), platný kým close nepadne pod spodok
@@ -133,8 +134,8 @@ def events(ctx, d: int, tf_pb: str) -> list[tuple]:
         if trend[k] != 1 or touches.get(bos[k], 0) >= max_t:
             continue
         R = hi[k] - lo[k]
-        if R <= 0:
-            continue
+        if R <= 0 or R < hc.get("min_impulse_atr", 0) * h_atr[k]:
+            continue  # malý impulz = šum/bočný trh
         top_z = hi[k] - f_min * R  # začiatok golden pocketu
         bot_z = hi[k] - f_max * R
         if L[i] > top_z:
@@ -156,7 +157,9 @@ def events(ctx, d: int, tf_pb: str) -> list[tuple]:
         hi_t = int(h_open[hi_i[k]])
         js = ltf_sl[(ltf_sl + nsw < i)]
         js = js[(t5[js] >= hi_t)]
-        idm = bool(((L[js] > top_z) & (L[js] > L[i])).any()) if len(js) else False
+        # prísny inducement: swing low najviac idm_max_pips nad zónou (likvidita tesne pred POI)
+        near = top_z + hc.get("idm_max_pips", 1e9) * ctx.pip
+        idm = bool(((L[js] > top_z) & (L[js] <= near) & (L[js] > L[i])).any()) if len(js) else False
         out.append((int(i), sg * float(min(L[i], top_z)), sg * float(lo[k]), sg * float(hi[k]),
                     f"{tf_pb}_PB" + ("_" + poi if poi else ""), idm))
     return out

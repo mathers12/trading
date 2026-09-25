@@ -11,7 +11,7 @@ DEFAULTS: dict = {
     # HTF pullback model (liquidity.external obsahuje htf_pb; smc_bot/htf.py)
     "htf": {"timeframe": "H1", "poi_timeframe": "H1", "swing_strength": 2, "fib_min": 0.62, "fib_max": 0.79,
             "require_fvg": True, "max_touches": 1,
-            "align": []},  # top-down: TF, ktorých štruktúra (smer posledného BOS) musí súhlasiť, napr. [W1, D1, H4]  # max_touches > 1: nový vstup pri každom návrate do zóny
+            "align": [], "min_impulse_atr": 0, "idm_max_pips": 1e9},  # top-down: TF, ktorých štruktúra (smer posledného BOS) musí súhlasiť, napr. [W1, D1, H4]  # max_touches > 1: nový vstup pri každom návrate do zóny
     # dôležité správy: 2 h pred a 30 min po správe žiadne nové signály (calendar/news.csv, čas NY)
     "news": {"enabled": False, "file": "calendar/news.csv", "before_min": 120, "after_min": 30},
     "session_strategy": {

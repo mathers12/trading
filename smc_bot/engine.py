@@ -441,10 +441,21 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
             entry < m["midnight_open"][i] if d == 1 else entry > m["midnight_open"][i])),
         "smt": _smt(ctx, sd, ext_idx, i),
         "htf_idm": bool(st.get("htf_idm", False)),
+        "adr_used": _adr_used(ctx, i),
         "poi_sweep": bool(np.searchsorted(sd.liq_taken, i, "right") > np.searchsorted(sd.liq_taken, ev, "left")),
         "judas": bool(primary.startswith("ASIA") and in_window(int(m["ny_min"][i]), ctx.sessions["london"])),
     }
     return setup, ""
+
+
+def _adr_used(ctx: Context, i: int) -> float:
+    """Koľko z priemerného denného rozsahu (5 predošlých D1) trh v tento deň už prešiel."""
+    m = ctx.m5
+    k = int(m["d1_last"][i])
+    if k < 0:
+        return float("nan")
+    rng = ctx.d1["high"][max(0, k - 4):k + 1] - ctx.d1["low"][max(0, k - 4):k + 1]
+    return round(float((m["day_high"][i] - m["day_low"][i]) / rng.mean()), 2) if rng.mean() > 0 else float("nan")
 
 
 def _filter(ctx: Context, s: dict, windows, killzones) -> str:
@@ -453,6 +464,8 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
     minute = int(s["signal_time"].tz_convert(NY).hour * 60 + s["signal_time"].tz_convert(NY).minute)
     if s["signal_ns"] >= s["eod_ns"]:
         return "po konci obchodného dňa"
+    if fl.get("max_adr_used") and s["adr_used"] == s["adr_used"] and s["adr_used"] > fl["max_adr_used"]:
+        return f"denný rozsah vyčerpaný ({s['adr_used']:.0%} ADR)"
     if news.blocked(cfg, s["signal_ns"]):
         return "okolo správ"
     nxt = news.next_start(cfg, s["signal_ns"])
