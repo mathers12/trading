@@ -2,6 +2,7 @@
 
 SMC/ICT signálny bot a backtester pre EUR/USD. Bot obchody **nezadáva**, iba posiela upozornenia na Telegram.
 Používateľ je trader (day trading). Komunikuj s ním **po slovensky**, texty v kóde, reportoch a commitoch tiež po slovensky.
+Časy v odpovediach uvádzaj v stredoeurópskom čase (Europe/Bratislava), nie v UTC.
 
 ## Šetrenie tokenov (dôležité)
 - Odpovedaj stručne a vecne; žiadne opakovanie zadania, dlhé úvody ani zhrnutia toho, čo je vidieť v diffe.
