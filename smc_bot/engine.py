@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from . import bias as bias_mod
+from . import news
 from .backtest import simulate
 from .context import DAY_NS, Context, in_window, parse_window
 from .structure import find_fvgs, swing_highs, swing_lows
@@ -452,6 +453,11 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
     minute = int(s["signal_time"].tz_convert(NY).hour * 60 + s["signal_time"].tz_convert(NY).minute)
     if s["signal_ns"] >= s["eod_ns"]:
         return "po konci obchodného dňa"
+    if news.blocked(cfg, s["signal_ns"]):
+        return "okolo správ"
+    nxt = news.next_start(cfg, s["signal_ns"])
+    if nxt is not None:
+        s["expiry_ns"] = min(s["expiry_ns"], nxt)  # nenaplnená limitka sa pred správou zruší
     if windows and not any(in_window(minute, w) for w in windows):
         return "mimo povoleného času"
     local_windows = fl.get("signal_windows_local")

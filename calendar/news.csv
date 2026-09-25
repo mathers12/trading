@@ -1,0 +1,37 @@
+# Dôležité správy (high impact) USD/EUR, čas v New York čase. Doplnené z pamäti pre testované mesiace 2025,
+# treba overiť/doplniť (napr. z ForexFactory). Formát: dátum a čas NY, mena, udalosť
+time_ny,currency,event
+2025-03-03 10:00,USD,ISM Manufacturing PMI
+2025-03-05 10:00,USD,ISM Services PMI
+2025-03-06 08:15,EUR,ECB rozhodnutie o sadzbách
+2025-03-06 08:45,EUR,ECB tlačová konferencia
+2025-03-07 08:30,USD,NFP
+2025-03-12 08:30,USD,CPI
+2025-03-13 08:30,USD,PPI
+2025-03-17 08:30,USD,Retail Sales
+2025-03-19 14:00,USD,FOMC rozhodnutie
+2025-03-19 14:30,USD,FOMC tlačová konferencia
+2025-03-27 08:30,USD,GDP
+2025-03-28 08:30,USD,Core PCE
+2025-07-01 10:00,USD,ISM Manufacturing PMI
+2025-07-01 10:00,USD,JOLTS
+2025-07-03 08:30,USD,NFP
+2025-07-03 10:00,USD,ISM Services PMI
+2025-07-15 08:30,USD,CPI
+2025-07-16 08:30,USD,PPI
+2025-07-17 08:30,USD,Retail Sales
+2025-07-24 08:15,EUR,ECB rozhodnutie o sadzbách
+2025-07-24 08:45,EUR,ECB tlačová konferencia
+2025-07-30 08:30,USD,GDP
+2025-07-30 14:00,USD,FOMC rozhodnutie
+2025-07-30 14:30,USD,FOMC tlačová konferencia
+2025-07-31 08:30,USD,Core PCE
+2025-08-01 08:30,USD,NFP
+2025-08-01 10:00,USD,ISM Manufacturing PMI
+2025-08-05 10:00,USD,ISM Services PMI
+2025-08-12 08:30,USD,CPI
+2025-08-14 08:30,USD,PPI
+2025-08-15 08:30,USD,Retail Sales
+2025-08-22 10:00,USD,Powell – Jackson Hole
+2025-08-28 08:30,USD,GDP
+2025-08-29 08:30,USD,Core PCE
