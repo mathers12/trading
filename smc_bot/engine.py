@@ -16,7 +16,7 @@ from .context import DAY_NS, Context, in_window, parse_window
 from .structure import find_fvgs, swing_highs, swing_lows
 from .timeframes import NY
 
-PRIORITY = ["H4_PB_H1_FVG", "H1_PB_H1_FVG", "H4_PB", "H1_PB", "H4_OB", "H1_OB", "M15_OB", "PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "LON_H", "LON_L", "H4_FVG", "H1_SH", "H1_SL", "H1_FVG", "M15_SH", "M15_SL", "M15_FVG"]
+PRIORITY = ["H4_PB_H1_FVG", "H4_PB_M15_FVG", "H1_PB_H1_FVG", "H1_PB_M15_FVG", "H4_PB", "H1_PB", "H4_OB", "H1_OB", "M15_OB", "PWH", "PWL", "PDH", "PDL", "ASIA_H", "ASIA_L", "LON_H", "LON_L", "H4_FVG", "H1_SH", "H1_SL", "H1_FVG", "M15_SH", "M15_SL", "M15_FVG"]
 
 
 def _bar_scale(cfg: dict) -> int:

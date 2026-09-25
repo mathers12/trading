@@ -128,9 +128,21 @@ GRID_VA = {  # 4. návrat do value area predchádzajúceho dňa (pravidlo 80 %)
            "2R": ["session_strategy.tp=rr", "session_strategy.rr=2"]},
     "min_rr": _SS("min_rr", [1.0, 1.5]),
 }
-GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY, "freq": GRID_FREQ, "market": GRID_MARKET, "poi": GRID_POI, "asia_bo": GRID_ASIA_BO, "asia_fo": GRID_ASIA_FO, "va": GRID_VA}
+_LW_ = lambda *w: [f"filters.signal_windows_local={_j(list(w))}"]  # noqa: E731
+# HTF pullback (dokument používateľa): BOS na H1/H4 -> golden pocket + FVG (H1/M15) -> inducement -> LTF MSS
+HTF_BASE = ['liquidity.external=["htf_pb"]', "liquidity.internal_fvg_timeframes=[]", "bias.filter=false",
+            'htf.poi_timeframe=["H1","M15"]']
+GRID_HTF = {
+    "vstup": {"FVG": ["entry.type=fvg_or_ob"], "trh": ["entry.type=market"], "OTE": ["entry.type=ote", "entry.ote_level=0.5"]},
+    "tp": {"extrém": ["target.mode=htf", "target.max_rr=null"], "extrém≤4R": ["target.mode=htf", "target.max_rr=4"],
+           "2R": ["target.mode=fixed_rr"]},
+    "idm": {"-": ["filters.require_htf_idm=false"], "áno": ["filters.require_htf_idm=true"]},
+    "okno": {"08-19": _LW_("08:00-19:00"), "LO+NY": _LW_("08:00-11:00", "14:30-17:00")},
+    "mss": {"3h": ["structure.mss_max_bars=36"], "6h": ["structure.mss_max_bars=72"]},
+}
+GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY, "freq": GRID_FREQ, "market": GRID_MARKET, "poi": GRID_POI, "asia_bo": GRID_ASIA_BO, "asia_fo": GRID_ASIA_FO, "va": GRID_VA, "htf": GRID_HTF}
 GRID_BASE = {"poi": POI_BASE, "asia_bo": ["strategy=asia_breakout"], "asia_fo": ["strategy=asia_fakeout"],
-             "va": ["strategy=value_revert"]}  # prepínače, ktoré treba už pri stavbe kontextu
+             "va": ["strategy=value_revert"], "htf": HTF_BASE}  # prepínače, ktoré treba už pri stavbe kontextu
 
 _CTX = None
 _BASE = None

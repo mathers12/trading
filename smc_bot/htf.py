@@ -55,32 +55,37 @@ def events(ctx, d: int) -> list[tuple]:
     hc = cfg["htf"]
     f = ctx.frames
     H = f[hc["timeframe"]]
-    P = f[hc["poi_timeframe"]]
     sg = 1 if d == 1 else -1
     if d == 1:
         hh, hl, hcl = H["high"].to_numpy(), H["low"].to_numpy(), H["close"].to_numpy()
-        ph, pl, pc = P["high"].to_numpy(), P["low"].to_numpy(), P["close"].to_numpy()
         L, Hm = ctx.m5["low"], ctx.m5["high"]
     else:
         hh, hl, hcl = -H["low"].to_numpy(), -H["high"].to_numpy(), -H["close"].to_numpy()
-        ph, pl, pc = -P["low"].to_numpy(), -P["high"].to_numpy(), -P["close"].to_numpy()
         L, Hm = -ctx.m5["high"], -ctx.m5["low"]
     trend, lo, hi, lo_i, hi_i, bos = _structure(hh, hl, hcl, int(hc["swing_strength"]))
     h_close = to_ns(H["close_time"])
     h_open = to_ns(H.index)
 
-    # POI: bull FVG na POI TF (zrkadlené), platný kým close nepadne pod spodok
-    a = atr(ph, pl, pc, cfg["structure"]["atr_period"])
-    fv = find_fvgs(ph, pl, cfg["structure"]["fvg_min_atr"] * a)
-    fv = fv[fv["side"] == "bull"]
-    p_close = to_ns(P["close_time"])
-    fv_cr = p_close[fv["idx"].to_numpy()] if len(fv) else np.array([], dtype=np.int64)
-    fv_bot, fv_top = fv["bottom"].to_numpy(), fv["top"].to_numpy()
-    fv_inv = np.full(len(fv), NEVER, dtype=np.int64)
-    for k, (idx, bot) in enumerate(zip(fv["idx"].to_numpy(), fv_bot)):
-        hit = pc[idx + 1:] < bot
-        if hit.any():
-            fv_inv[k] = p_close[idx + 1 + int(np.argmax(hit))]
+    # POI: bull FVG na POI TF (zrkadlené; H1 aj M15), platný kým close nepadne pod spodok
+    tfs = hc["poi_timeframe"]
+    tfs = [tfs] if isinstance(tfs, str) else list(tfs)
+    cr_l, bot_l, top_l, inv_l, tf_l = [], [], [], [], []
+    for tf in tfs:
+        P = f[tf]
+        if d == 1:
+            ph, pl, pc = P["high"].to_numpy(), P["low"].to_numpy(), P["close"].to_numpy()
+        else:
+            ph, pl, pc = -P["low"].to_numpy(), -P["high"].to_numpy(), -P["close"].to_numpy()
+        a = atr(ph, pl, pc, cfg["structure"]["atr_period"])
+        fv = find_fvgs(ph, pl, cfg["structure"]["fvg_min_atr"] * a)
+        fv = fv[fv["side"] == "bull"]
+        p_close = to_ns(P["close_time"])
+        for idx, bot, top in zip(fv["idx"].to_numpy(), fv["bottom"].to_numpy(), fv["top"].to_numpy()):
+            hit = pc[idx + 1:] < bot
+            inv_l.append(p_close[idx + 1 + int(np.argmax(hit))] if hit.any() else NEVER)
+            cr_l.append(p_close[idx]); bot_l.append(bot); top_l.append(top); tf_l.append(tf)
+    fv_cr, fv_bot, fv_top = np.array(cr_l, dtype=np.int64), np.array(bot_l), np.array(top_l)
+    fv_inv, fv_tf = np.array(inv_l, dtype=np.int64), np.array(tf_l)
 
     m = ctx.m5
     t5 = m["close_ns"]
@@ -108,7 +113,7 @@ def events(ctx, d: int) -> list[tuple]:
             ok = (fv_cr <= t) & (fv_inv > t) & (fv_cr >= leg_start) & (fv_bot <= top_z) & (fv_top >= bot_z) & (L[i] <= fv_top)
             if not ok.any():
                 continue
-            poi = f"{hc['poi_timeframe']}_FVG"
+            poi = f"{fv_tf[np.flatnonzero(ok)[0]]}_FVG"
         done.add(bos[k])
         # inducement: LTF swing low potvrdený počas pullbacku (po vrchole impulzu), nad zónou -> teraz vybratý
         hi_t = int(h_open[hi_i[k]])
