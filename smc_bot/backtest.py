@@ -26,6 +26,8 @@ def simulate(setup: dict, m1a: dict) -> dict:
     )
     out = {"status": "", "result": "", "fill_ns": None, "exit_ns": None, "exit_price": np.nan, "r": np.nan}
 
+    if setup.get("entry_type") == "MARKET":
+        return _simulate_market(setup, m1a, long, start, x_open, x_low, x_high, out)
     fill = -1
     j = start
     n = len(open_ns)
@@ -72,5 +74,39 @@ def simulate(setup: dict, m1a: dict) -> dict:
         out.update(result="OPEN")
         return out
     move = out["exit_price"] - entry if long else entry - out["exit_price"]
+    out["r"] = move / risk
+    return out
+
+
+def _simulate_market(setup, m1a, long, start, x_open, x_low, x_high, out):
+    """Trhový vstup na otvorení prvej M1 sviečky po signáli (long za ask, short za bid)."""
+    n = len(m1a["open_ns"])
+    if start >= n or m1a["open_ns"][start] >= setup["eod_ns"]:
+        out.update(status="CANCELLED_EOD")
+        return out
+    fill_px = m1a["ask_open"][start] if long else m1a["bid_open"][start]
+    sl = setup["sl"]
+    risk = (fill_px - sl) if long else (sl - fill_px)
+    if risk <= 0:
+        out.update(status="NOT_FILLED", exit_ns=int(m1a["open_ns"][start]))
+        return out
+    tp = fill_px + setup["rr"] * risk if long else fill_px - setup["rr"] * risk
+    setup["entry"], setup["tp"] = round(float(fill_px), 5), round(float(tp), 5)
+    out.update(status="FILLED", fill_ns=int(m1a["open_ns"][start]))
+    for j in range(start, n):
+        t = m1a["open_ns"][j]
+        if j > start and t >= setup["eod_ns"]:
+            out.update(result="EOD", exit_ns=int(t), exit_price=x_open[j])
+            break
+        if (x_low[j] <= sl) if long else (x_high[j] >= sl):
+            out.update(result="SL", exit_ns=int(t) + 60 * 10**9, exit_price=sl)
+            break
+        if (x_high[j] >= tp) if long else (x_low[j] <= tp):
+            out.update(result="TP", exit_ns=int(t) + 60 * 10**9, exit_price=tp)
+            break
+    else:
+        out.update(result="OPEN")
+        return out
+    move = out["exit_price"] - fill_px if long else fill_px - out["exit_price"]
     out["r"] = move / risk
     return out

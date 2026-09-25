@@ -281,6 +281,9 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
                 if px < sd.C[i] and (k >= i or sd.L[k + 1:i + 1].min() > px or k + 1 > i):
                     entry_d, entry_type = px, "OB"
                 break
+    if en["type"] == "market":
+        # vstup hneď po potvrdení MSS (na otvorení ďalšej sviečky); TP/SL sa prepočíta od skutočného plnenia
+        entry_d, entry_type = sd.C[i], "MARKET"
     if en["type"] == "ote":
         # ICT OTE: 70,5 % spätného pohybu displacementu (extrém sweepu -> vrchol pohybu)
         leg_high = sd.H[ext_idx:i + 1].max()

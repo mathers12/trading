@@ -77,7 +77,18 @@ GRID_FREQ = {
     "tp": {"2R": ["target.mode=fixed_rr"], "likv≤3R": ["target.mode=first_min_rr", "target.max_rr=3"]},
 }
 BEST = ["entry.type=ote", "entry.ote_level=0.705", "entry.sl_buffer_pips=3", "filters.sweep_kinds=null"]
-GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY, "freq": GRID_FREQ}
+# trhový vstup po MSS (bez čakania na pullback, ktorý vyberal horšie obchody)
+GRID_MARKET = {
+    "okno": {"08-19": [f"filters.signal_windows_local={_j(WINDOWS['08-19'])}"],
+             "LO+NYAM": [f"filters.signal_windows_local={_j(['08:00-11:00', '14:30-17:00'])}"],
+             "LO": [f"filters.signal_windows_local={_j(WINDOWS['LO 08-11'])}"]},
+    "liq": GRID_DAILY["liq"],
+    "h4crt": GRID["h4crt"],
+    "bias": GRID_DAILY["bias"],
+    "tp": GRID_DAILY["tp"],
+    "MO": GRID["MO"],
+}
+GRIDS = {"ict": GRID, "ict2": GRID_ICT2, "denny": GRID_DAILY, "freq": GRID_FREQ, "market": GRID_MARKET}
 
 _CTX = None
 _BASE = None
