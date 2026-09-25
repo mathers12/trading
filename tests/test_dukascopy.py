@@ -39,3 +39,22 @@ def test_url_month_is_zero_based(monkeypatch):
     monkeypatch.setattr(dukascopy, "_get", lambda s, url: seen.append(url) or b"")
     dukascopy.fetch_day(None, "EUR_USD", pd.Timestamp("2024-01-05"))
     assert seen[0] == "https://datafeed.dukascopy.com/datafeed/EURUSD/2024/00/05/BID_candles_min_1.bi5"
+
+
+def test_load_downloads_only_missing_days(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_fetch_days(inst, days, workers=4, fast=False):
+        calls.append(list(days))
+        idx = pd.DatetimeIndex([d + pd.Timedelta(hours=10) for d in days])
+        cols = {c: 1.1 for c in ["open", "high", "low", "close", "bid_open", "bid_high", "bid_low", "bid_close",
+                                  "ask_open", "ask_high", "ask_low", "ask_close"]}
+        return pd.DataFrame({**cols, "volume": 1.0}, index=idx)
+
+    monkeypatch.setattr(dukascopy, "fetch_days", fake_fetch_days)
+    cfg = {"instrument": "EUR_USD", "data": {"cache_dir": str(tmp_path), "start": "2024-01-01", "end": None}}
+    dukascopy.load(cfg, "2024-01-01", "2024-01-08")  # Po–Ne, bez soboty = 6 dní
+    assert len(calls[0]) == 6
+    df = dukascopy.load(cfg, "2024-01-01", "2024-01-10")  # v cache chýbajú iba 8. a 9.
+    assert [d.day for d in calls[1]] == [8, 9]
+    assert len(df) == 8

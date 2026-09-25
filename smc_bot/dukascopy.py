@@ -62,11 +62,11 @@ def _session() -> requests.Session:
     return s
 
 
-def _get(session: requests.Session, url: str, attempts: int = 5) -> bytes:
+def _get(session: requests.Session, url: str, attempts: int = 5, timeout: float = 30) -> bytes:
     last = ""
     for attempt in range(attempts):
         try:
-            r = session.get(url, timeout=30)
+            r = session.get(url, timeout=timeout)
             if r.status_code == 404:
                 return b""
             if r.status_code == 200:
@@ -78,12 +78,13 @@ def _get(session: requests.Session, url: str, attempts: int = 5) -> bytes:
     raise DownloadError(f"Dukascopy: nepodarilo sa stiahnuť {url} ({last})")
 
 
-def fetch_day(session: requests.Session, instrument: str, day: pd.Timestamp) -> pd.DataFrame:
+def fetch_day(session: requests.Session, instrument: str, day: pd.Timestamp, fast: bool = False) -> pd.DataFrame:
     sym, pt = symbol(instrument), point(instrument)
+    opts = {"attempts": 2, "timeout": 10} if fast else {}
     sides = {}
     for side in ("BID", "ASK"):
         url = URL.format(sym=sym, y=day.year, m=day.month - 1, d=day.day, side=side)
-        sides[side] = decode(_get(session, url), day, pt)
+        sides[side] = decode(_get(session, url, **opts), day, pt)
     bid, ask = sides["BID"], sides["ASK"]
     if not len(bid) or not len(ask):
         return pd.DataFrame()
@@ -100,13 +101,18 @@ def fetch_day(session: requests.Session, instrument: str, day: pd.Timestamp) -> 
     return out
 
 
-def fetch_range(instrument: str, start: pd.Timestamp, end: pd.Timestamp, workers: int = 4) -> pd.DataFrame:
-    """Stiahne celé dni [start, end) paralelne. Soboty preskakuje (trh je zavretý).
+def trading_days(start: pd.Timestamp, end: pd.Timestamp) -> list[pd.Timestamp]:
+    """Dni [start, end) bez sobôt (v sobotu je forex zavretý)."""
+    return [d for d in pd.date_range(start.normalize(), end.normalize(), freq="D", inclusive="left") if d.weekday() != 5]
+
+
+def fetch_days(instrument: str, days: list[pd.Timestamp], workers: int = 4, fast: bool = False) -> pd.DataFrame:
+    """Stiahne zadané dni paralelne.
 
     Dni, ktoré sa nepodarí stiahnuť, sa na konci skúsia ešte raz po jednom.
-    Ak zlyhá viac ako 2 % dní, skončí chybou, inak ich iba vypíše.
+    fast=True (živé skenovanie): krátke timeouty a chýbajúce dni iba vypíše,
+    doplnia sa pri ďalšom behu. Inak skončí chybou, ak zlyhá viac ako 2 % dní.
     """
-    days = [d for d in pd.date_range(start.normalize(), end.normalize(), freq="D", inclusive="left") if d.weekday() != 5]
     if not days:
         return pd.DataFrame()
     local = threading.local()
@@ -115,7 +121,7 @@ def fetch_range(instrument: str, start: pd.Timestamp, end: pd.Timestamp, workers
         if not hasattr(local, "session"):
             local.session = _session()
         try:
-            return d, fetch_day(local.session, instrument, d.tz_localize(None)), ""
+            return d, fetch_day(local.session, instrument, d.tz_localize(None), fast), ""
         except DownloadError as e:
             return d, None, str(e)
 
@@ -127,7 +133,7 @@ def fetch_range(instrument: str, start: pd.Timestamp, end: pd.Timestamp, workers
             if df is None:
                 failed.append((d, err))
                 print(f"  ! {d:%Y-%m-%d}: {err}", flush=True)
-                if len(failed) >= 8 and not frames:
+                if len(failed) >= 8 and not frames and not fast:
                     pool.shutdown(wait=False, cancel_futures=True)
                     raise DownloadError(f"Dukascopy nevracia dáta (prvých {len(failed)} dní zlyhalo). Posledná chyba: {err}")
             else:
@@ -135,7 +141,7 @@ def fetch_range(instrument: str, start: pd.Timestamp, end: pd.Timestamp, workers
             done += 1
             if done % 50 == 0 or done == len(days):
                 print(f"  Dukascopy: {done}/{len(days)} dní", flush=True)
-    if failed:
+    if failed and not fast:
         print(f"  Opakujem {len(failed)} nestiahnutých dní…", flush=True)
         session, still = _session(), []
         for d, _ in failed:
@@ -144,17 +150,22 @@ def fetch_range(instrument: str, start: pd.Timestamp, end: pd.Timestamp, workers
                 frames.append(fetch_day(session, instrument, d.tz_localize(None)))
             except DownloadError as e:
                 still.append((d, str(e)))
-        if still:
-            msg = f"Nestiahnuté dni ({len(still)}/{len(days)}): " + ", ".join(f"{d:%Y-%m-%d}" for d, _ in still[:10])
-            if len(still) > 0.02 * len(days):
-                raise DownloadError(msg + f"\nPosledná chyba: {still[-1][1]}")
-            print("  VAROVANIE: " + msg, flush=True)
+        failed = still
+    if failed:
+        msg = f"Nestiahnuté dni ({len(failed)}/{len(days)}): " + ", ".join(f"{d:%Y-%m-%d}" for d, _ in failed[:10])
+        if not fast and len(failed) > 0.02 * len(days):
+            raise DownloadError(msg + f"\nPosledná chyba: {failed[-1][1]}")
+        print("  VAROVANIE: " + msg, flush=True)
     frames = [f for f in frames if len(f)]
     return pd.concat(frames).sort_index() if frames else pd.DataFrame()
 
 
-def load(cfg: dict, start: str | None = None, end: str | None = None) -> pd.DataFrame:
-    """M1 z Dukascopy s cache (data/<instrument>_M1_dukascopy.parquet). Dopĺňa iba chýbajúce dni."""
+def load(cfg: dict, start: str | None = None, end: str | None = None, fast: bool = False) -> pd.DataFrame:
+    """M1 z Dukascopy s cache (data/<instrument>_M1_dukascopy.parquet).
+
+    Sťahuje iba dni, ktoré v cache chýbajú (aj diery po predošlých výpadkoch).
+    Dnešný deň Dukascopy ešte nemá, preto končí včerajškom.
+    """
     from .data import COLUMNS
 
     inst = cfg["instrument"]
@@ -164,26 +175,20 @@ def load(cfg: dict, start: str | None = None, end: str | None = None) -> pd.Data
     end_arg = end or cfg["data"].get("end")
     end_ts = min(pd.Timestamp(end_arg, tz="UTC"), today) if end_arg else today
     cached = pd.read_parquet(path) if path.exists() else pd.DataFrame(columns=COLUMNS)
-    parts = [cached]
-    if not len(cached):
-        print(f"Sťahujem {inst} M1 z Dukascopy {start_ts:%Y-%m-%d} – {end_ts:%Y-%m-%d}")
-        parts.append(fetch_range(inst, start_ts, end_ts))
-    else:
-        first_day, last_day = cached.index[0].normalize(), cached.index[-1].normalize()
-        if start_ts < first_day - pd.Timedelta(days=2):
-            print(f"Sťahujem {inst} M1 z Dukascopy {start_ts:%Y-%m-%d} – {first_day:%Y-%m-%d}")
-            parts.append(fetch_range(inst, start_ts, first_day))
-        if last_day + pd.Timedelta(days=1) < end_ts:
-            # posledný deň v cache stiahneme znova (mohol byť neúplný)
-            print(f"Dopĺňam {inst} M1 z Dukascopy {last_day:%Y-%m-%d} – {end_ts:%Y-%m-%d}")
-            parts.append(fetch_range(inst, last_day, end_ts))
-    parts = [p for p in parts if len(p)]
+    have = set(cached.index.normalize()) if len(cached) else set()
+    missing = [d for d in trading_days(start_ts, end_ts) if d not in have]
+    new = pd.DataFrame()
+    if missing:
+        print(f"Sťahujem {inst} M1 z Dukascopy: {len(missing)} dní ({missing[0]:%Y-%m-%d} – {missing[-1]:%Y-%m-%d})")
+        new = fetch_days(inst, missing, fast=fast)
+    parts = [p for p in (cached, new) if len(p)]
     if not parts:
         return pd.DataFrame(columns=COLUMNS)
     df = pd.concat(parts)
     df = df[~df.index.duplicated(keep="last")].sort_index()[COLUMNS]
-    path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(path)
+    if len(new):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(path)
     return df[(df.index >= start_ts) & (df.index < end_ts)]
 
 

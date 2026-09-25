@@ -102,7 +102,7 @@ def load_recent(cfg: dict, days: int) -> pd.DataFrame:
     if cfg["data"]["source"] == "oanda":
         client = OandaClient(environment=cfg["oanda"]["environment"])
         return client.candles(cfg["instrument"], start)
-    hist = dukascopy.load(cfg, start=f"{start:%Y-%m-%d}")
+    hist = dukascopy.load(cfg, start=f"{start:%Y-%m-%d}", fast=True)
     recent = dukascopy.twelvedata_recent(cfg["instrument"], cfg["data"]["assumed_spread_pips"], cfg["pip"])
     if len(hist) and len(recent):
         recent = recent[recent.index > hist.index[-1]]
