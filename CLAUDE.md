@@ -12,7 +12,9 @@ Používateľ je trader (day trading). Komunikuj s ním **po slovensky**, texty 
 - Nové dlhé behy (research, backtest) spúšťaj iba s jasnou hypotézou; nekontroluj ich opakovane v krátkych intervaloch.
 - Pri nejasnosti sa radšej krátko opýtaj, než robiť veľkú prácu naslepo.
 
-## Stratégia používateľa (zdroj pravdy – nemeň bez jeho súhlasu)
+## Stratégia používateľa (východisko)
+Claude smie stratégiu upravovať alebo jej časti vynechať, ak dáta (IS aj OOS) ukážu, že to pomáha.
+Každú takú zmenu stručne zdôvodni používateľovi a zapíš sem.
 - **Bias D1** z dvoch posledných uzavretých sviečok (C1, C2), pravidlo z jeho obrázka (`smc_bot/bias.py`):
   close nad high C1 alebo sweep low C1 a návrat do rozsahu = bullish; zrkadlovo bearish; inside bar alebo vybraté obe strany = avoid.
   Keď D1 nedá smer: W1 rovnakým pravidlom, potom smer k najbližšej nevybranej externej likvidite (PDH/PDL, PWH/PWL, Ázia).
