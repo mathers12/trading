@@ -22,7 +22,7 @@ from .data import load_m1, load_recent
 
 def _args():
     p = argparse.ArgumentParser(prog="smc_bot")
-    p.add_argument("command", choices=["fetch", "backtest", "compare", "scan", "research"])
+    p.add_argument("command", choices=["fetch", "backtest", "compare", "scan", "research", "ml"])
     p.add_argument("--config", default="config.yaml")
     p.add_argument("--source", help="oanda | sample | cesta k súboru")
     p.add_argument("--start")
@@ -150,6 +150,20 @@ def cmd_research(cfg, a):
     print(f"Report: {out}/research.md")
 
 
+def cmd_ml(cfg, a):
+    from . import ml
+
+    m1 = _load(cfg, a)
+    res = ml.run(build_context(m1, cfg), cfg, a.split)
+    pd.set_option("display.width", 250)
+    print(f"Setupov: IS {res['n_is']}, OOS {res['n_oos']}")
+    print(res["table"].to_string(index=False))
+    out = Path(a.out or f"reports/ml_{pd.Timestamp.now():%Y%m%d_%H%M%S}")
+    out.mkdir(parents=True, exist_ok=True)
+    res["table"].to_csv(out / "ml.csv", index=False)
+    res["trades"].to_csv(out / "setups.csv", index=False)
+
+
 def main():
     a = _args()
     cfg = load_config(a.config, a.set)
@@ -161,6 +175,8 @@ def main():
         cmd_compare(cfg, a)
     elif a.command == "research":
         cmd_research(cfg, a)
+    elif a.command == "ml":
+        cmd_ml(cfg, a)
     else:
         cmd_scan(cfg, a)
 
