@@ -1,0 +1,107 @@
+# HTF top-down pullback model (kandidát 2026-09-25): H4/H1/M15 štruktúra -> pullback 50–79 % + FVG H1/M15 -> M1 MSS, TP 2R.
+# Použitie: python -m smc_bot backtest --config config_htf.yaml --start 2025-07-01 --end 2025-08-01 --set smt.instrument=null
+instrument: EUR_USD
+pip: 0.0001
+local_timezone: Europe/Bratislava
+data:
+  source: dukascopy
+  start: '2024-01-01'
+  end: null
+  cache_dir: data
+  assumed_spread_pips: 0.8
+oanda:
+  environment: practice
+sessions:
+  asia: 20:00-00:00
+  london: 02:00-05:00
+  ny_am: 07:00-10:00
+  ny_pm: 13:30-16:00
+bias:
+  filter: false
+  fallback:
+  - w1
+  - liquidity
+liquidity:
+  external:
+  - htf_pb
+  internal_fvg_timeframes: []
+  swing_strength: 2
+  max_age_days: 5
+structure:
+  timeframe: M1
+  swing_strength_m5: 2
+  atr_period: 14
+  fvg_min_atr: 0.1
+  displacement_body_atr: 1.5
+  require_displacement: true
+  mss_max_bars: 36
+  mss_ref_lookback: 48
+poi:
+  timeframes:
+  - H4
+  - H1
+  - M15
+  tolerance_pips: 2
+  max_age_days: 10
+volume_profile:
+  bin_pips: 0.5
+  value_area: 0.7
+  tolerance_pips: 3
+  npoc_lookback_days: 10
+inducement:
+  lookback_bars: 24
+  max_distance_pips: 10
+entry:
+  type: fvg_or_ob
+  price: proximal
+  expiry_bars: 12
+  sl_buffer_pips: 2
+  min_sl_pips: 3
+  max_sl_pips: 25
+target:
+  min_rr: 2.0
+  mode: fixed_rr
+  kinds:
+  - pdh_pdl
+  - pwh_pwl
+  - asia
+  - london
+  - h1_swings
+  - m15_swings
+filters:
+  signal_windows_local:
+  - 08:00-19:00
+  signal_windows_ny: []
+  sweep_kinds: null
+  require_midnight_open: false
+  require_killzone: false
+  require_h4_crt: false
+  require_htf_poi: false
+  require_vp: false
+  require_inducement: false
+  require_premium_discount: false
+risk:
+  risk_per_trade_pct: 1.0
+  max_trades_per_day: 4
+  max_losses_per_day: 3
+  one_position_at_a_time: false
+  eod_exit_local: '19:00'
+  no_reentry_after_loss: true
+live:
+  lookback_days: 25
+  alert_max_age_minutes: 60
+htf:
+  poi_timeframe:
+  - H1
+  - M15
+  fib_min: 0.5
+  max_touches: 99
+  align:
+  - H4
+  - H1
+  - M15
+  timeframe:
+  - H1
+  - M15
+news:
+  enabled: true

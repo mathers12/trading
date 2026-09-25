@@ -79,6 +79,11 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   Potvrdenia na 3 mesiacoch spolu (03+07+08/2025, `news.enabled` = 2 h pred / 30 min po správach z `calendar/news.csv`):
   správy −1 obchod (PF 1,20→1,25); H4 CRT PF 1,62 (25 obch.); okno LO+NY PF 1,49; **správy + H4 CRT + LO+NY: 19 obchodov (0,3/deň), 53 %, PF 2,12**,
   ale 11 z 19 obchodov je z júla, august PF ~1,0. Premium/discount a vstup na 50 % škodia; htf_idm a poi_sweep sú príliš voľné (nemenia nič).
+  **Review ako trader:** chyby = opakované vstupy po strate a tesný SL (medián 6,5 pipu, SL do ~30 min).
+  `risk.no_reentry_after_loss` + `entry.sl_buffer_pips=2`: 03+07+08/2025 42 obchodov, 48 %, **PF 1,77**, +15,9R (03: PF 1,01, 07: 3,77, 08: 0,54).
+  Nevidený **05/2025: 14 obchodov, 36 %, PF 1,11, +1R**. Kandidát uložený v `config_htf.yaml`. Stále nie cieľ; zisk ťahá hlavne trendový júl,
+  bočné mesiace (08/2025) stratové → ďalší krok: filter trendového vs. bočného režimu.
+  Nepomohli: min. sila impulzu (ATR), prísny inducement, ADR filter, max. 2 dotyky, silnejší displacement, min. SL 5 pipov.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
