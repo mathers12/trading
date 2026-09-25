@@ -84,6 +84,9 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   Nevidený **05/2025: 14 obchodov, 36 %, PF 1,11, +1R**. Kandidát uložený v `config_htf.yaml`. Stále nie cieľ; zisk ťahá hlavne trendový júl,
   bočné mesiace (08/2025) stratové → ďalší krok: filter trendového vs. bočného režimu.
   Nepomohli: min. sila impulzu (ATR), prísny inducement, ADR filter, max. 2 dotyky, silnejší displacement, min. SL 5 pipov.
+- **Fixingy / intraday sezónnosť** (Krohn a kol., JF 2024: USD posilňuje pred fixingami): na 03+05+07+08/2025 hodina 13:15–14:15 (pred ECB fixom 14:15)
+  EUR/USD −4 p, t = −3,4; short 13:15→14:15 PF 2,29, 61 %, 1/deň. **Overenie 10/2024, 01/2025, 02/2026: +56 / −41 / −7 p, PF ~1,05 → neobstálo.**
+  WM/Reuters 17:00 fix a intraday momentum (ráno → poobede) bez stabilného efektu.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
