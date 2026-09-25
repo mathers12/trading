@@ -43,6 +43,18 @@ GRID = {
     "h4crt": {"-": ["filters.require_h4_crt=false"], "áno": ["filters.require_h4_crt=true"]},
     "slbuf": {"1": ["entry.sl_buffer_pips=1"], "3": ["entry.sl_buffer_pips=3"]},
 }
+# 2. kolo: okolo prvkov, ktoré pomohli v IS aj OOS (OTE, Londýn/Silver Bullet, H4 CRT, širší SL)
+GRID_ICT2 = {
+    "liq": GRID["liq"],
+    "okno": {"LO 08-11": [f"filters.signal_windows_local={_j(WINDOWS['LO 08-11'])}"],
+             "SB": [f"filters.signal_windows_local={_j(WINDOWS['SB'])}"],
+             "LO+SB": [f"filters.signal_windows_local={_j(['08:00-11:00', '16:00-17:00'])}"]},
+    "ote": {str(x): ["entry.type=ote", f"entry.ote_level={x}"] for x in (0.62, 0.705, 0.79)},
+    "tp": {"2R": ["target.mode=fixed_rr"], "likv≤3R": ["target.mode=first_min_rr", "target.max_rr=3"]},
+    "h4crt": GRID["h4crt"],
+    "slbuf": {"3": ["entry.sl_buffer_pips=3"], "5": ["entry.sl_buffer_pips=5"]},
+}
+GRIDS = {"ict": GRID, "ict2": GRID_ICT2}
 
 _CTX = None
 _BASE = None

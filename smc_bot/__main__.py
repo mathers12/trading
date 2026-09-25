@@ -31,6 +31,7 @@ def _args():
     p.add_argument("--charts", type=int, default=0, help="koľko grafov obchodov vykresliť")
     p.add_argument("--set", action="append", default=[], metavar="KĽÚČ=HODNOTA", help="napr. filters.require_h4_crt=true")
     p.add_argument("--state", default="state/scan_state.json")
+    p.add_argument("--grid", default="ict", help="research: ict | ict2")
     p.add_argument("--split", default="2025-07-01", help="research: začiatok out-of-sample obdobia")
     p.add_argument("--test-notify", action="store_true", help="scan: pošli na Telegram aj stavovú správu (test)")
     return p.parse_args()
@@ -129,7 +130,7 @@ def cmd_research(cfg, a):
 
     m1 = _load(cfg, a)
     ctx = build_context(m1, cfg)
-    df = research.run_grid(ctx, cfg, a.split)
+    df = research.run_grid(ctx, cfg, a.split, research.GRIDS[a.grid])
     out = Path(a.out or f"reports/research_{pd.Timestamp.now():%Y%m%d_%H%M%S}")
     out.mkdir(parents=True, exist_ok=True)
     df.to_csv(out / "research.csv", index=False)
