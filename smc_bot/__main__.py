@@ -22,7 +22,7 @@ from .data import load_m1, load_recent
 
 def _args():
     p = argparse.ArgumentParser(prog="smc_bot")
-    p.add_argument("command", choices=["fetch", "backtest", "compare", "scan"])
+    p.add_argument("command", choices=["fetch", "backtest", "compare", "scan", "research"])
     p.add_argument("--config", default="config.yaml")
     p.add_argument("--source", help="oanda | sample | cesta k súboru")
     p.add_argument("--start")
@@ -31,6 +31,7 @@ def _args():
     p.add_argument("--charts", type=int, default=0, help="koľko grafov obchodov vykresliť")
     p.add_argument("--set", action="append", default=[], metavar="KĽÚČ=HODNOTA", help="napr. filters.require_h4_crt=true")
     p.add_argument("--state", default="state/scan_state.json")
+    p.add_argument("--split", default="2025-07-01", help="research: začiatok out-of-sample obdobia")
     p.add_argument("--test-notify", action="store_true", help="scan: pošli na Telegram aj stavovú správu (test)")
     return p.parse_args()
 
@@ -123,6 +124,31 @@ def cmd_scan(cfg, a):
     state_path.write_text(json.dumps({"last_ns": max([last] + [x["ns"] for x in new])}))
 
 
+def cmd_research(cfg, a):
+    from . import research
+
+    m1 = _load(cfg, a)
+    ctx = build_context(m1, cfg)
+    df = research.run_grid(ctx, cfg, a.split)
+    out = Path(a.out or f"reports/research_{pd.Timestamp.now():%Y%m%d_%H%M%S}")
+    out.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out / "research.csv", index=False)
+    top = research.rank(df).head(30)
+    pd.set_option("display.width", 250)
+    pd.set_option("display.max_columns", 40)
+    print("\nTOP 30 podľa in-sample (IS), vedľa výsledok na OOS:")
+    print(top.to_string(index=False))
+    both = df[(df["IS_n"] >= 40) & (df["OOS_n"] >= 25)].copy()
+    both["min_avgR"] = both[["IS_avgR", "OOS_avgR"]].min(axis=1)
+    robust = both.sort_values("min_avgR", ascending=False).head(15)
+    print("\nNajrobustnejšie (najlepší horší z IS/OOS):")
+    print(robust.to_string(index=False))
+    md = [f"# Research {cfg['instrument']} – OOS od {a.split}\n", "## Top 30 podľa IS\n",
+          report._md_table(top.set_index("liq")), "\n## Najrobustnejšie\n", report._md_table(robust.set_index("liq"))]
+    (out / "research.md").write_text("\n".join(md), encoding="utf-8")
+    print(f"Report: {out}/research.md")
+
+
 def main():
     a = _args()
     cfg = load_config(a.config, a.set)
@@ -132,6 +158,8 @@ def main():
         cmd_backtest(cfg, a)
     elif a.command == "compare":
         cmd_compare(cfg, a)
+    elif a.command == "research":
+        cmd_research(cfg, a)
     else:
         cmd_scan(cfg, a)
 

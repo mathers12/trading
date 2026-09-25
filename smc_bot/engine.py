@@ -291,15 +291,23 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         return None, "žiadna opačná likvidita"
     order = np.flatnonzero(ok)[np.argsort(sd.tg_price_d[ok], kind="stable")]
     rr_all = (sd.tg_price_d[order] - entry_d) / risk_d
-    if tg["mode"] == "nearest":
+    mode = tg["mode"]
+    if mode == "nearest":
         pick = 0 if rr_all[0] >= tg["min_rr"] else -1
     else:
         hits = np.flatnonzero(rr_all >= tg["min_rr"])
         pick = int(hits[0]) if len(hits) else -1
+    if mode == "fixed_rr":
+        pick = 0  # TP pevne na min_rr, likvidita slúži iba na popis
     if pick < 0:
         return None, f"RR pod {tg['min_rr']} (najbližšia likvidita {rr_all[0]:.2f}R)"
     tk = order[pick]
     tp_d, rr = sd.tg_price_d[tk], float(rr_all[pick])
+    if mode in ("fixed_rr", "fixed_rr_liq"):
+        # fixed_rr_liq: TP na min_rr, ale iba keď je za ním likvidita (magnet)
+        tp_d, rr = entry_d + tg["min_rr"] * risk_d, float(tg["min_rr"])
+    elif tg.get("max_rr") and rr > tg["max_rr"]:
+        tp_d, rr = entry_d + tg["max_rr"] * risk_d, float(tg["max_rr"])
 
     # --- konfluencie (tagy)
     b, bsrc, d1b, w1b = effective_bias(ctx, i)
@@ -358,6 +366,10 @@ def _build_setup(ctx: Context, sd: _Side, st: dict, i: int, ref: int):
         "vp": _vp_confluence(ctx, t, extreme),
         "inducement": idm,
         "premium_discount": bool(pd_ok),
+        "hour_ny": int(m["ny_min"][i] // 60),
+        "sweep_depth_pips": round((level_d - ext) / pip, 1),
+        "mss_bars": int(i - ext_idx),
+        "liq_rr": round(float(rr_all[max(pick, 0)]), 2),
     }
     return setup, ""
 
@@ -372,6 +384,8 @@ def _filter(ctx: Context, s: dict, windows, killzones) -> str:
         return "mimo povoleného času"
     if fl["require_killzone"] and not any(in_window(minute, w) for w in killzones):
         return "mimo killzone"
+    if fl.get("sweep_kinds") and s["sweep_kind"] not in fl["sweep_kinds"]:
+        return f"likvidita {s['sweep_kind']} nie je povolená"
     if cfg["bias"]["filter"] and not s["bias_aligned"]:
         return f"proti biasu ({s['bias']})"
     for key, name in (("require_htf_poi", "htf_poi"), ("require_h4_crt", "h4_crt"), ("require_inducement", "inducement"),

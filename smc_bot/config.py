@@ -47,10 +47,12 @@ DEFAULTS: dict = {
     "target": {
         "min_rr": 2.0,
         "mode": "first_min_rr",
+        "max_rr": None,
         "kinds": ["pdh_pdl", "pwh_pwl", "asia", "h1_swings", "m15_swings"],
     },
     "filters": {
         "signal_windows_ny": ["00:00-14:00"],
+        "sweep_kinds": None,
         "require_htf_poi": False,
         "require_h4_crt": False,
         "require_inducement": False,

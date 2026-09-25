@@ -1,0 +1,44 @@
+name: Research
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Od (YYYY-MM-DD)"
+        default: "2024-01-01"
+      split:
+        description: "Začiatok out-of-sample obdobia"
+        default: "2025-07-01"
+      extra:
+        description: "Zmeny nastavení, napr. --set target.min_rr=2"
+        default: ""
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Cache historických dát
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: m1-data-${{ github.run_id }}
+          restore-keys: m1-data-
+      - name: Research
+        env:
+          START: ${{ inputs.start }}
+          SPLIT: ${{ inputs.split }}
+          EXTRA: ${{ inputs.extra }}
+        run: |
+          python -m smc_bot research --start "$START" --split "$SPLIT" --out reports/research $EXTRA
+          cat reports/research/research.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: research-report
+          path: reports/
