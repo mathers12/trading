@@ -61,6 +61,10 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   weekly profil, vstup na retest MSS úrovne, kombinácia trhového vstupu s H4 CRT/SMT.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
+## Analýza cudzích obchodov XAU/USD (08/2026)
+`docs/analyza_xauusd_2026-08.md`: diskrečný trend/momentum long na zlate s pyramidovaním, BE a držaním ziskov; zisk z 3 trendových dní
+(ostatné −17 k$), 1 mesiac = neprukazné. Najlepšie London 08–12 SK, skoro v dni, iba v smere trendu. Návrh mechanickej verzie v dokumente.
+
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
 1. **POI / supply-demand zóny (priorita, definícia od používateľa):**
    - zóna = order block (supply/demand) na **H4, H1 alebo M15**,
