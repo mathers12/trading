@@ -44,3 +44,19 @@ Výhoda je teda v **smere dňa + veľkosti pozície na trendových dňoch + nech
 - Podmienka: rozsah dňa do vstupu malý (napr. < 0,5 × ATR D1); voliteľne sweep PDL/PDH v dni.
 - Spúšťač: M5 MSS / prerazenie 60-min maxima v smere biasu.
 - SL 10 $ (alebo za M5 swing), BE po +1R, pridať 1–3 pozície pri každom +1R, runner do 19:00 SK alebo TP na okrúhlom čísle / 3–5R.
+
+## Overenie mechanickej verzie (2025-09 – 2026-07, 11 mesiacov, `scripts/xau_momentum_bt.py`)
+Dáta Dukascopy M1 bid/ask, zlato 3 366 → 4 448 (+32 %), ATR D1 medián ~100 $. Vstup: prvé M5 prerazenie 60-min maxima
+v okne 08–12 SK, SL 10 $ alebo × ATR, BE pri +1R, voliteľne pyramída, zatvorenie 19:00 SK, provízia 0,09 $/oz.
+
+| variant | dni | R | PF | úspešnosť | august 2026 (PF) |
+|---|---|---|---|---|---|
+| bias EMA50 D1, SL 10 $, bez pyramídy | 207 | −21 | 0,81 | 46 % | 2,98 |
+| to isté + pyramída 3× | 207 | −58 | 0,70 | 12 % | 4,28 |
+| + malý rozsah dňa (< 0,5 ATR) | 87 | −5 | 0,90 | 44 % | 5,42 |
+| bias EMA, SL 0,3 × ATR, bez pyramídy | 207 | +16 | 1,20 | 52 % | 1,46 |
+| iba long, SL 0,3 × ATR, rozsah < 0,5 ATR | 83 | +10 | 1,37 | 58 % | 1,86 |
+
+Po mesiacoch (bias EMA, SL 10 $): zisk iba 2025-09, 2026-06 až 08; december až máj stratové.
+**Záver:** august 2026 bol výnimočný mesiac. Mechanická verzia nemá stabilnú výhodu, pyramída stratu zväčšuje
+a SL 10 $ je na zlate (ATR ~100 $) príliš tesný. Širší SL (0,3 × ATR) dáva PF 1,2–1,4, čo je ďaleko od cieľa PF ≥ 2 a je to vybraté z 24 variantov.

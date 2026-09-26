@@ -63,7 +63,7 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
 
 ## Analýza cudzích obchodov XAU/USD (08/2026)
 `docs/analyza_xauusd_2026-08.md`: diskrečný trend/momentum long na zlate s pyramidovaním, BE a držaním ziskov; zisk z 3 trendových dní
-(ostatné −17 k$), 1 mesiac = neprukazné. Najlepšie London 08–12 SK, skoro v dni, iba v smere trendu. Návrh mechanickej verzie v dokumente.
+(ostatné −17 k$), 1 mesiac = neprukazné. Najlepšie London 08–12 SK, skoro v dni, iba v smere trendu. Mechanická verzia na 2025-09–2026-07 bez stabilnej výhody (PF 0,7–1,4; pyramída škodí, SL 10 $ príliš tesný).
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
 1. **POI / supply-demand zóny (priorita, definícia od používateľa):**
