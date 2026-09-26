@@ -103,6 +103,11 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   Vzaté vs. nevzaté pullbacky v tom istom čase (`tools/vyber_pullbackov.py`): sviečkové vzory, objem, hladiny (PDH/PDL, Ázia, okrúhle), správy
   bez rozdielu; jediný rozdiel = vstup až po odraze ~3,8 USD od extrému pullbacku (nevzaté 2,5). Mechanicky (`bounce`) 09/2026 PF 0,70–0,81 → nepomohlo.
   ML (`tools/ml_vstupy.py`): vstup vs. náhodný okamih AUC 0,70 (pullback 5–15 min, volatilita, VWAP, hodina); zisk vs. strata AUC 0,65 ± 0,13 (slabé).
+- **Druhý export (2026-09-26_11, 42× XAU/USD + 5× USO, 8.–24. 9. 2026, UTC):** win 68 %, PF 3,66 (zlato 3,55, +9,5 USD/obchod), SL 15–20 a TP 40–65 vždy zadané.
+  Typ: **obrat na extréme dňa (mean reversion k VWAP)** – vstup po páde ~15–25 USD za 4 h, blízko low dňa, ~17 USD pod VWAP; zisky zatvára ručne
+  **na VWAP** (79 % MFE), stratové vstupy boli pri VWAP (bez natiahnutia). Pevné výstupy na jeho vstupoch PF 0,56–1,54 → edge opäť vo výstupe/výbere.
+  Mechanicky (`smc_bot/gold_reversal.py`, TP = VWAP): 09/2026 PF 0,99–1,32, ale 06–08/2026 a 10/2025+01/2026+04/2026 PF 0,69–0,81 → závisí od režimu
+  (september bočný trh, ostatné mesiace trend, v ktorom fade stráca).
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
