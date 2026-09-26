@@ -92,6 +92,10 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   bez extrémnej MSS sviečky `filters.avoid_strong_body`, SL ≥ 1×ATR(M15) `entry.min_sl_atr_m15`), ale **na nevidených mesiacoch PF 0,53–0,82 → preučenie**.
   Úspešnosť v overení 23–31 %. GBP/USD s rovnakou logikou PF 1,0. Poučenie: filtre vybrané podľa tréningových mesiacov neprenášajú výhodu;
   tréningové obdobie (3 mesiace, ~20–40 obchodov) je na výber filtrov príliš malé.
+- **Ručné obchody (export 2026-09-26, 147× XAU/USD, 8.–25. 9. 2026, časy v UTC; `smc_bot/trade_forensics.py`):** win 73 %, PF 1,72, +1,83 USD/obchod
+  (t = 2,5). Vstupy = krátky pullback (5–15 min proti smeru) v 60-min trende / na správnej strane VWAP; SMC sweep ani FVG nerozhodujú.
+  S pevnými výstupmi (TP 3–8 / SL 6–10) sú jeho vstupy na nule (PF 0,86–1,02) → **výhoda je v ručnom riadení výstupov**, nie vo vstupe.
+  Mechanický prepis (`smc_bot/gold_pullback.py`, TP 15 / SL 10 / max 4 h): 06–08/2026 PF 1,00; 10/2025+01/2026+04/2026 PF 0,91 → bez výhody.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
