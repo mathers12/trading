@@ -25,7 +25,7 @@ jobs:
           REC=np.dtype([("t",">u4"),("o",">u4"),("c",">u4"),("l",">u4"),("h",">u4"),("v",">f4")])
           S=requests.Session(); S.headers['User-Agent']='Mozilla/5.0'
           os.makedirs('prices',exist_ok=True)
-          days=[d for d in pd.date_range('2026-07-20','2026-08-31') if d.weekday()!=5]
+          days=[d for d in pd.date_range('2026-07-30','2026-08-31') if d.weekday()!=5]
           for ins in ['USA100IDXUSD','XAUUSD','XAGUSD','USDJPY']:
             fr=[]
             for d in days:
@@ -36,12 +36,12 @@ jobs:
                   if r.status_code==200: break
                 except Exception: pass
                 time.sleep(min(30,3*(a+1)))
-              else: print('FAIL',ins,d,flush=True); continue
+              else: print('FAIL',ins,d,r.status_code if 'r' in dir() else '',flush=True); continue
               if r.content:
                 rec=np.frombuffer(lzma.decompress(r.content),dtype=REC)
                 idx=d+pd.to_timedelta(rec['t'].astype(np.int64),unit='s')
                 fr.append(pd.DataFrame({k:rec[k] for k in 'ohlcv'},index=idx))
-              time.sleep(0.3)
+              print('OK',ins,d.date(),a,flush=True); time.sleep(1)
             df=pd.concat(fr); df=df[df.v>0]
             df[list('ohlc')].to_csv(f'prices/{ins}_M1.csv.gz',index_label='t')
             print('DONE',ins,len(df),df.index.min(),df.index.max(),flush=True)
