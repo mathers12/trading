@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 DEFAULT = {"lookback": 15, "pull": 2.0, "tp": 5.0, "sl": 8.0, "max_min": 60, "hours": (7, 19), "vwap": True, "trend": True,
-           "dir_60m": 0.0}  # dir_60m > 0: smer = 60-min pohyb (aspoň tento počet USD) namiesto H1 EMA
+           "dir_60m": 0.0, "partial": 0.0, "trail": 4.0, "be_after_partial": False}  # dir_60m > 0: smer = 60-min pohyb (aspoň tento počet USD) namiesto H1 EMA
 
 
 def prepare(m: pd.DataFrame) -> dict:
@@ -36,6 +36,47 @@ def prepare(m: pd.DataFrame) -> dict:
             "ah": m["ask_high"].to_numpy(), "al": m["ask_low"].to_numpy(),
             "bh": m["bid_high"].to_numpy(), "bl": m["bid_low"].to_numpy(),
             "day": day.to_numpy()}
+
+
+def exit_trade(a: dict, j: int, d: int, p: dict) -> tuple[float, int]:
+    """Výstup obchodu od vstupu na otvorení sviečky j. Vracia (výsledok v USD na celú pozíciu, index konca).
+
+    partial > 0: časť pozície `partial` sa zatvorí na TP `tp`, zvyšok ide na trailing stop `trail` USD od najlepšej ceny
+    (SL zvyšku sa po čiastočnom TP presunie aspoň na vstup iba ak be_after_partial). Inak jednoduchý TP/SL.
+    """
+    n = len(a["t"])
+    e = a["ao"][j] if d == 1 else a["bo"][j]
+    part = p.get("partial", 0.0)
+    sl_px = e - d * p["sl"]
+    done_part, best, realized = False, e, 0.0
+    end = min(n - 1, j + p["max_min"])
+    k = j
+    while k <= end:
+        if k > j and a["day"][k] != a["day"][j]:  # neprenášať cez polnoc UTC
+            break
+        lo, hi = (a["bl"][k], a["bh"][k]) if d == 1 else (a["al"][k], a["ah"][k])
+        rest = 1.0 - part if done_part else 1.0
+        if (lo <= sl_px) if d == 1 else (hi >= sl_px):  # konzervatívne: SL pred TP v tej istej sviečke
+            return realized + rest * d * (sl_px - e), k
+        fav = hi if d == 1 else lo
+        if k > j:
+            if not done_part and d * (fav - e) >= p["tp"]:
+                if part <= 0:
+                    return p["tp"], k
+                realized += part * p["tp"]
+                done_part = True
+                if p.get("be_after_partial"):
+                    sl_px = e if d == 1 else e
+                    sl_px = max(sl_px, e) if d == 1 else min(sl_px, e)
+            if done_part:
+                best = max(best, fav) if d == 1 else min(best, fav)
+                trail_px = best - d * p["trail"]
+                sl_px = max(sl_px, trail_px) if d == 1 else min(sl_px, trail_px)
+        k += 1
+    k = min(k, n - 1)
+    x = a["bo"][k] if d == 1 else a["ao"][k]
+    rest = 1.0 - part if done_part else 1.0
+    return realized + rest * d * (x - e), k
 
 
 def simulate(a: dict, p: dict) -> list[dict]:
@@ -64,25 +105,7 @@ def simulate(a: dict, p: dict) -> list[dict]:
             continue
         # vstup na otvorení ďalšej sviečky
         j = i + 1
-        e = a["ao"][j] if d == 1 else a["bo"][j]
-        tp, sl = e + d * p["tp"], e - d * p["sl"]
-        res, k = None, j
-        end = min(n - 1, j + p["max_min"])
-        while k <= end:
-            if a["day"][k] != a["day"][j] and k > j:  # neprenášať cez polnoc UTC
-                break
-            lo, hi = (a["bl"][k], a["bh"][k]) if d == 1 else (a["al"][k], a["ah"][k])
-            if (lo <= sl) if d == 1 else (hi >= sl):
-                res = -p["sl"]
-                break
-            if k > j and ((hi >= tp) if d == 1 else (lo <= tp)):
-                res = p["tp"]
-                break
-            k += 1
-        if res is None:
-            k = min(k, n - 1)
-            x = a["bo"][k] if d == 1 else a["ao"][k]
-            res = d * (x - e)
+        res, k = exit_trade(a, j, d, p)
         out.append({"t": a["t"][j], "dir": d, "pts": res})
         i = k + 1
     return out
