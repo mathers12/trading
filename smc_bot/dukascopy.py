@@ -29,7 +29,10 @@ def symbol(instrument: str) -> str:
 
 
 def point(instrument: str) -> float:
-    return 0.001 if "JPY" in instrument.upper() else 0.00001
+    u = instrument.upper()
+    if u.startswith(("XAU", "XAG")):
+        return 0.001  # kovy (zlato, striebro) majú v Dukascopy 3 desatinné miesta
+    return 0.001 if "JPY" in u else 0.00001
 
 
 def decode(raw: bytes, day: pd.Timestamp, pt: float) -> pd.DataFrame:

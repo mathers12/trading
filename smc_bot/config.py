@@ -125,7 +125,12 @@ def load_config(path: str | Path | None = "config.yaml", overrides: list[str] | 
 
 
 def pip_size(instrument: str) -> float:
-    return 0.01 if "JPY" in instrument.upper() else 0.0001
+    u = instrument.upper()
+    if u.startswith("XAU"):
+        return 0.1  # zlato: 1 „pip“ = 0,10 USD
+    if u.startswith("XAG"):
+        return 0.01
+    return 0.01 if "JPY" in u else 0.0001
 
 
 def for_instrument(cfg: dict, instrument: str) -> dict:
