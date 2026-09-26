@@ -108,6 +108,8 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   **na VWAP** (79 % MFE), stratové vstupy boli pri VWAP (bez natiahnutia). Pevné výstupy na jeho vstupoch PF 0,56–1,54 → edge opäť vo výstupe/výbere.
   Mechanicky (`smc_bot/gold_reversal.py`, TP = VWAP): 09/2026 PF 0,99–1,32, ale 06–08/2026 a 10/2025+01/2026+04/2026 PF 0,69–0,81 → závisí od režimu
   (september bočný trh, ostatné mesiace trend, v ktorom fade stráca).
+- **Režimový prepínač** (`tools/rezim.py`, H1 efficiency ratio za 24 h: vysoký -> pullback, nízky -> obrat k VWAP), 06–09/2026, 4 sady prahov:
+  pullback v trende PF 0,30–0,79, obrat v bočnom trhu PF 0,68–0,76, spolu PF 0,70–0,74 → horšie ako bez filtra, neoverované ďalej.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
