@@ -96,6 +96,9 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   (t = 2,5). Vstupy = krátky pullback (5–15 min proti smeru) v 60-min trende / na správnej strane VWAP; SMC sweep ani FVG nerozhodujú.
   S pevnými výstupmi (TP 3–8 / SL 6–10) sú jeho vstupy na nule (PF 0,86–1,02) → **výhoda je v ručnom riadení výstupov**, nie vo vstupe.
   Mechanický prepis (`smc_bot/gold_pullback.py`, TP 15 / SL 10 / max 4 h): 06–08/2026 PF 1,00; 10/2025+01/2026+04/2026 PF 0,91 → bez výhody.
+  Výstupy (`tools/rozbor_vystupov.py`): zisky zatvára na najlepšej minúte (74 % MFE, typicky +2–8 USD), 26 ziskov > 8 USD nechal bežať;
+  straty drží ~44 min, zatvára na odraze (85 % MAE). Pevné TP/SL na jeho vstupoch = win 71–73 %, ale PF ~1,0 → edge = ktoré zisky nechá bežať.
+  ML (`tools/ml_vstupy.py`): vstup vs. náhodný okamih AUC 0,70 (pullback 5–15 min, volatilita, VWAP, hodina); zisk vs. strata AUC 0,65 ± 0,13 (slabé).
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
