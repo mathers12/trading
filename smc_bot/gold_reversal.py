@@ -35,6 +35,9 @@ def simulate(a: dict, p: dict) -> list[dict]:
     out, i = [], 241
     h0, h1 = p["hours"]
     while i < n - 1:
+        if p.get("allow") is not None and not p["allow"][i]:  # režimový filter (napr. iba trend / iba bočný trh)
+            i += 1
+            continue
         if not (h0 <= a["hour"][i] < h1):
             i += 1
             continue
