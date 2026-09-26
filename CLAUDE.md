@@ -61,6 +61,13 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   weekly profil, vstup na retest MSS úrovne, kombinácia trhového vstupu s H4 CRT/SMT.
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 
+## Analýza cudzích obchodov (xlsx, august 2026, USTEC/XAG/XAU/USDJPY, 564 príkazov)
+- Diskrečný intraday trend/momentum trader: tesný SL (USTEC ~20 b.), rýchlo BE, bez TP, ručný výstup (+50,8k z ručných výstupov, −11,4k na SL).
+- Väčšinu zisku robí veľkosť pozície (1 obchod = polovica zisku USTEC); na 1 lot PF iba 1,27.
+- USTEC s M1 cenami: zisk iba v smere trendu – 4h pohyb v smere + cena nad EMA200 (M5): 74 obchodov, na 1 lot PF 2,2, win 58 %;
+  proti trendu PF 0,93; breakout 4h extrému PF 3,5; kúpa v dolnej polovici dňa a po sweepe PDL stratová (PF 0,7).
+- Iba 1 mesiac a výber pravidiel na tých istých dátach → treba overiť na USTEC 2020–2026 (IS/OOS).
+
 ## Ďalšie stratégie na otestovanie (dohodnuté s používateľom)
 1. **POI / supply-demand zóny (priorita, definícia od používateľa):**
    - zóna = order block (supply/demand) na **H4, H1 alebo M15**,
