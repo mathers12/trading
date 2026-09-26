@@ -100,6 +100,8 @@ Dáta: EUR/USD M1 2020-01 – 2026-09 (lokálne `data/`, ~91 MB), GBP/USD 2024+ 
   straty drží ~44 min, zatvára na odraze (85 % MAE). Pevné TP/SL na jeho vstupoch = win 71–73 %, ale PF ~1,0 → edge = ktoré zisky nechá bežať.
   Čiastočný výstup (`partial`, `trail` v `gold_pullback.py`, `tools/porovnaj_vystupy.py`): na jeho vstupoch najlepšie ½ na +3 USD, zvyšok trailing 3, SL 15
   → PF 1,35 (jeho ručné 1,72). S mechanickými vstupmi na 6 mesiacoch: win 75–81 %, ale PF 0,84–0,93 → bez výhody (vstupy + spread).
+  Vzaté vs. nevzaté pullbacky v tom istom čase (`tools/vyber_pullbackov.py`): sviečkové vzory, objem, hladiny (PDH/PDL, Ázia, okrúhle), správy
+  bez rozdielu; jediný rozdiel = vstup až po odraze ~3,8 USD od extrému pullbacku (nevzaté 2,5). Mechanicky (`bounce`) 09/2026 PF 0,70–0,81 → nepomohlo.
   ML (`tools/ml_vstupy.py`): vstup vs. náhodný okamih AUC 0,70 (pullback 5–15 min, volatilita, VWAP, hodina); zisk vs. strata AUC 0,65 ± 0,13 (slabé).
 - Metodika pre ďalšie kolá: ladiť na 2020–2023 (+ časť 2024), overovať na 2025-07+; výsledky vždy s počtom obchodov/deň.
 

@@ -16,7 +16,8 @@ import numpy as np
 import pandas as pd
 
 DEFAULT = {"lookback": 15, "pull": 2.0, "tp": 5.0, "sl": 8.0, "max_min": 60, "hours": (7, 19), "vwap": True, "trend": True,
-           "dir_60m": 0.0, "partial": 0.0, "trail": 4.0, "be_after_partial": False}  # dir_60m > 0: smer = 60-min pohyb (aspoň tento počet USD) namiesto H1 EMA
+           "dir_60m": 0.0, "partial": 0.0, "trail": 4.0, "be_after_partial": False,
+           "bounce": 0.0, "bounce_wait": 30}  # dir_60m > 0: smer = 60-min pohyb (aspoň tento počet USD) namiesto H1 EMA
 
 
 def prepare(m: pd.DataFrame) -> dict:
@@ -103,6 +104,18 @@ def simulate(a: dict, p: dict) -> list[dict]:
         if move > -pull:
             i += 1
             continue
+        # voliteľne čakať na odraz od extrému pullbacku (bounce USD), najviac bounce_wait minút
+        if p.get("bounce", 0) > 0:
+            ext, jj = a["mid"][i], None
+            for q in range(i + 1, min(n - 1, i + p.get("bounce_wait", 30))):
+                ext = min(ext, a["mid"][q]) if d == 1 else max(ext, a["mid"][q])
+                if d * (a["mid"][q] - ext) >= p["bounce"]:
+                    jj = q
+                    break
+            if jj is None:
+                i += 1
+                continue
+            i = jj
         # vstup na otvorení ďalšej sviečky
         j = i + 1
         res, k = exit_trade(a, j, d, p)
